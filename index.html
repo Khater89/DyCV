@@ -147,30 +147,56 @@
     <!-- ══ Google Drive — Folder Embed ════════════════════════════════ -->
     <section class="card" id="drivePdfCard">
 
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+      <!-- ── Header ───────────────────────────────────────────── -->
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
         <div>
-          <h2 style="margin:0 0 4px;">📁 ملفات الـ CV — Google Drive</h2>
-          <p class="muted" style="margin:0;font-size:13px;">كل نسخ الـ CV مباشرة من Drive · انقر على أي ملف لتفتحه</p>
+          <h2 style="margin:0 0 3px;">📁 ملفات الـ CV — Google Drive</h2>
+          <p class="muted" style="margin:0;font-size:12px;" id="driveFolderCount">جاري التحميل…</p>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <a id="driveFolderOpenBtn" href="https://drive.google.com/drive/folders/19_uyZfXb19w8djIoJlPHwEjzFmLKinI_"
-            target="_blank" rel="noopener"
-            style="padding:9px 16px;border:1.5px solid #c0392b;border-radius:10px;
-              font-size:13px;font-weight:700;text-decoration:none;color:#c0392b;
-              background:#fff;transition:all .18s;display:inline-flex;align-items:center;gap:6px;">
-            ↗ فتح المجلد في Drive
-          </a>
-          <button id="driveViewToggle"
-            style="padding:9px 16px;border:1.5px solid #ddd;border-radius:10px;
-              font-size:13px;font-weight:700;cursor:pointer;background:#fff;color:#555;
-              transition:all .18s;">
-            ☰ عرض شبكة
-          </button>
-        </div>
+        <button id="driveAddFolderBtn"
+          style="padding:9px 16px;border:1.5px solid #c0392b;border-radius:10px;
+            font-size:13px;font-weight:700;cursor:pointer;background:#fff;color:#c0392b;
+            display:inline-flex;align-items:center;gap:6px;transition:all .18s;">
+          ➕ إضافة مجلد
+        </button>
       </div>
 
-      <!-- View mode tabs -->
-      <div style="display:flex;gap:8px;margin-bottom:14px;border-bottom:1.5px solid #f0f0f0;padding-bottom:12px;">
+      <!-- ── Add Folder Panel (hidden by default) ────────────── -->
+      <div id="driveAddPanel" style="display:none;background:#f9f9f9;border:1.5px solid #eee;
+        border-radius:14px;padding:14px 16px;margin-bottom:14px;">
+        <div style="font-size:13px;font-weight:700;color:#333;margin-bottom:8px;">➕ إضافة مجلد Google Drive</div>
+        <div style="font-size:12px;color:#888;margin-bottom:10px;">
+          الصق رابط المجلد من Google Drive (مثال: https://drive.google.com/drive/folders/FOLDER_ID)
+        </div>
+        <div style="display:flex;gap:8px;">
+          <input id="driveNewFolderInput" placeholder="https://drive.google.com/drive/folders/…"
+            style="flex:1;padding:9px 12px;border:1.5px solid #ddd;border-radius:10px;
+              font-size:13px;outline:none;transition:border-color .2s;" />
+          <input id="driveNewFolderName" placeholder="اسم المجلد (اختياري)"
+            style="width:160px;padding:9px 12px;border:1.5px solid #ddd;border-radius:10px;
+              font-size:13px;outline:none;" />
+          <button id="driveAddConfirmBtn"
+            style="padding:9px 18px;border:none;border-radius:10px;background:#c0392b;
+              color:#fff;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">
+            إضافة ✓
+          </button>
+          <button id="driveAddCancelBtn"
+            style="padding:9px 14px;border:1.5px solid #ddd;border-radius:10px;
+              background:#fff;color:#555;font-size:13px;cursor:pointer;">
+            إلغاء
+          </button>
+        </div>
+        <div id="driveAddError" style="display:none;color:#c0392b;font-size:12px;margin-top:6px;"></div>
+      </div>
+
+      <!-- ── Folder Tabs ──────────────────────────────────────── -->
+      <div id="driveFolderTabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;
+        border-bottom:1.5px solid #f0f0f0;padding-bottom:12px;">
+        <!-- injected by JS -->
+      </div>
+
+      <!-- ── View mode tabs ────────────────────────────────────── -->
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
         <button class="drive-tab-btn active-drive-tab" data-view="list"
           style="padding:7px 14px;border-radius:8px;border:1.5px solid #c0392b;
             background:#c0392b;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">
@@ -181,64 +207,18 @@
             background:#fff;color:#555;font-size:12px;font-weight:700;cursor:pointer;">
           ⊞ شبكة
         </button>
-        <button class="drive-tab-btn" data-view="preview"
-          style="padding:7px 14px;border-radius:8px;border:1.5px solid #ddd;
-            background:#fff;color:#555;font-size:12px;font-weight:700;cursor:pointer;">
-          👁 معاينة مباشرة
-        </button>
       </div>
 
-      <!-- LIST VIEW (default — Google Drive embedded folder) -->
-      <div id="driveViewList">
-        <iframe
-          src="https://drive.google.com/embeddedfolderview?id=19_uyZfXb19w8djIoJlPHwEjzFmLKinI_#list"
-          style="width:100%;height:500px;border:1.5px solid #eee;border-radius:14px;background:#fff;"
+      <!-- ── Folder viewer (iframe swaps per folder & view) ───── -->
+      <div id="driveFolderViewer">
+        <iframe id="driveFolderIframe"
+          src=""
+          style="width:100%;height:520px;border:1.5px solid #eee;border-radius:14px;background:#fff;"
           allow="autoplay">
         </iframe>
         <p class="muted" style="font-size:12px;margin:8px 0 0;text-align:center;">
-          انقر على أي ملف لتفتحه مباشرة في Drive
+          انقر على أي ملف لتفتحه · <span id="driveActiveFolderLink"></span>
         </p>
-      </div>
-
-      <!-- GRID VIEW (Google Drive embedded folder - grid) -->
-      <div id="driveViewGrid" style="display:none;">
-        <iframe
-          src="https://drive.google.com/embeddedfolderview?id=19_uyZfXb19w8djIoJlPHwEjzFmLKinI_#grid"
-          style="width:100%;height:500px;border:1.5px solid #eee;border-radius:14px;background:#fff;"
-          allow="autoplay">
-        </iframe>
-      </div>
-
-      <!-- PREVIEW VIEW — embedded PDF viewer -->
-      <div id="driveViewPreview" style="display:none;">
-        <div style="display:grid;grid-template-columns:240px 1fr;gap:14px;height:560px;">
-
-          <!-- File list sidebar -->
-          <div style="border:1.5px solid #eee;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;">
-            <div style="padding:10px 12px;background:#f9f9f9;border-bottom:1px solid #eee;
-              font-size:12px;font-weight:700;color:#555;">
-              📂 اختر ملف للمعاينة
-            </div>
-            <div id="driveFileList" style="overflow-y:auto;flex:1;padding:6px;">
-              <!-- Files injected by JS -->
-            </div>
-          </div>
-
-          <!-- PDF iframe -->
-          <div style="border:1.5px solid #eee;border-radius:14px;overflow:hidden;background:#f5f5f5;position:relative;">
-            <iframe id="drivePreviewFrame"
-              src="https://drive.google.com/embeddedfolderview?id=19_uyZfXb19w8djIoJlPHwEjzFmLKinI_#list"
-              style="width:100%;height:100%;border:0;"
-              allow="autoplay">
-            </iframe>
-            <div id="drivePreviewHint"
-              style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-                flex-direction:column;gap:12px;background:#fafafa;pointer-events:none;">
-              <div style="font-size:48px;">📄</div>
-              <div style="font-size:14px;color:#888;font-weight:600;">اختر ملفاً من القائمة اليسار</div>
-            </div>
-          </div>
-        </div>
       </div>
 
     </section>
@@ -250,88 +230,107 @@
 
 
 <!-- ══ AI CV Builder Modal ════════════════════════════════════════ -->
-<div id="aiCVModal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);">
-  <div style="max-width:960px;height:95vh;margin:2.5vh auto;background:#0d0d14;border-radius:24px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 40px 120px rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.08);">
+<div id="aiCVModal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.88);backdrop-filter:blur(8px);">
+  <div style="max-width:1100px;height:96vh;margin:2vh auto;background:#0d0d14;border-radius:24px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 40px 120px rgba(0,0,0,0.8);border:1px solid rgba(255,255,255,0.08);">
 
-    <!-- Header -->
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0;background:linear-gradient(135deg,rgba(99,102,241,0.15),rgba(168,85,247,0.08));">
-      <div style="display:flex;align-items:center;gap:12px;">
-        <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#a855f7);display:flex;align-items:center;justify-content:center;font-size:18px;">✨</div>
+    <!-- ── Modal Header ── -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0;background:linear-gradient(135deg,rgba(99,102,241,0.18),rgba(168,85,247,0.08));">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#a855f7);display:flex;align-items:center;justify-content:center;font-size:17px;">✨</div>
         <div>
-          <div style="font-weight:800;font-size:16px;color:#fff;letter-spacing:0.3px;">AI CV Builder</div>
-          <div style="font-size:12px;color:rgba(255,255,255,0.45);margin-top:1px;">Powered by Claude AI</div>
+          <div style="font-weight:800;font-size:15px;color:#fff;">AI CV Builder — ATS Optimized</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:1px;">Powered by Claude · يملأ حقول الـ CV تلقائياً</div>
         </div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;">
-        <button id="aiCVPrint" style="display:none;padding:8px 16px;border-radius:10px;border:1px solid rgba(99,102,241,0.5);background:rgba(99,102,241,0.15);color:#a5b4fc;font-size:13px;font-weight:700;cursor:pointer;">
+        <button id="aiCVApply" style="display:none;padding:8px 14px;border-radius:10px;border:1px solid rgba(74,222,128,0.5);background:rgba(74,222,128,0.12);color:#4ade80;font-size:12px;font-weight:700;cursor:pointer;">
+          ✅ تطبيق على الـ CV
+        </button>
+        <button id="aiCVPrint" style="display:none;padding:8px 14px;border-radius:10px;border:1px solid rgba(99,102,241,0.5);background:rgba(99,102,241,0.15);color:#a5b4fc;font-size:12px;font-weight:700;cursor:pointer;">
           ⬇ Export PDF
         </button>
-        <button id="aiCVClose" style="width:36px;height:36px;border-radius:10px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+        <button id="aiCVClose" style="width:34px;height:34px;border-radius:10px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
       </div>
     </div>
 
-    <!-- Body: 2 columns -->
-    <div style="display:grid;grid-template-columns:300px 1fr;flex:1;overflow:hidden;">
+    <!-- ── Body: Left panel + Right CV+Chat ── -->
+    <div style="display:grid;grid-template-columns:280px 1fr;flex:1;overflow:hidden;min-height:0;">
 
-      <!-- Left: JD + Analysis -->
+      <!-- ▌Left: Inputs + Analysis ▌ -->
       <div style="border-right:1px solid rgba(255,255,255,0.07);display:flex;flex-direction:column;overflow:hidden;">
 
-        <!-- JD Input -->
-        <div style="padding:16px;border-bottom:1px solid rgba(255,255,255,0.07);">
-
-          <!-- API Key -->
-          <div style="margin-bottom:12px;">
-            <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">🔑 Anthropic API Key</div>
-            <div style="position:relative;">
-              <input id="aiKeyInput" type="password" placeholder="sk-ant-…"
-                style="width:100%;padding:9px 36px 9px 12px;background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.12);border-radius:10px;color:#fff;font-size:12px;outline:none;font-family:monospace;box-sizing:border-box;"/>
-              <button id="aiKeyToggle" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(255,255,255,0.4);cursor:pointer;font-size:14px;padding:0;">👁</button>
-            </div>
-            <div style="font-size:10px;color:rgba(255,255,255,0.25);margin-top:4px;">
-              احصل عليه من <a href="https://console.anthropic.com/keys" target="_blank" style="color:#a855f7;">console.anthropic.com</a> — يُحفظ تلقائياً
-            </div>
+        <!-- API Key -->
+        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.06);">
+          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.35);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;">🔑 API Key</div>
+          <div style="position:relative;">
+            <input id="aiKeyInput" type="password" placeholder="sk-ant-…"
+              style="width:100%;padding:8px 32px 8px 10px;background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.1);border-radius:9px;color:#fff;font-size:11px;outline:none;font-family:monospace;box-sizing:border-box;"/>
+            <button id="aiKeyToggle" style="position:absolute;right:7px;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(255,255,255,0.35);cursor:pointer;font-size:13px;padding:0;">👁</button>
           </div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.2);margin-top:3px;">
+            <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:#7c7cfc;">console.anthropic.com</a> — يُحفظ تلقائياً
+          </div>
+        </div>
 
-          <!-- JD textarea -->
-          <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">الوصف الوظيفي</div>
+        <!-- JD Input -->
+        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.06);">
+          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.35);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;">الوصف الوظيفي</div>
           <textarea id="aiJdInput" placeholder="الصق الوصف الوظيفي هنا… (Ctrl+Enter للتوليد)"
-            style="width:100%;height:140px;background:rgba(255,255,255,0.05);border:1.5px solid rgba(255,255,255,0.1);border-radius:12px;padding:12px;color:#fff;font-size:12px;line-height:1.6;resize:none;outline:none;font-family:inherit;box-sizing:border-box;"></textarea>
+            style="width:100%;height:130px;background:rgba(255,255,255,0.04);border:1.5px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px;color:#fff;font-size:11px;line-height:1.6;resize:none;outline:none;font-family:inherit;box-sizing:border-box;"></textarea>
           <button id="aiGenerateBtn"
-            style="width:100%;margin-top:10px;padding:13px;border-radius:12px;border:none;
+            style="width:100%;margin-top:8px;padding:11px;border-radius:11px;border:none;
               background:linear-gradient(135deg,#6366f1,#a855f7);color:#fff;
-              font-size:14px;font-weight:800;cursor:pointer;letter-spacing:0.5px;
-              transition:all .2s;box-shadow:0 4px 20px rgba(99,102,241,0.4);">
+              font-size:13px;font-weight:800;cursor:pointer;transition:all .2s;
+              box-shadow:0 4px 16px rgba(99,102,241,0.4);">
             ✨ توليد السيرة الذاتية
           </button>
         </div>
 
-        <!-- Analysis panel -->
-        <div style="flex:1;overflow-y:auto;padding:16px;">
-          <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;">تحليل الوصف الوظيفي</div>
-          <div id="aiAnalysisPanel" style="color:rgba(255,255,255,0.6);font-size:12px;line-height:1.8;">
-            <div style="color:rgba(255,255,255,0.25);text-align:center;padding:30px 0;">
-              الصق وصفاً وظيفياً وانقر توليد
+        <!-- Analysis -->
+        <div style="flex:1;overflow-y:auto;padding:12px 14px;">
+          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.35);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">تحليل الوصف الوظيفي</div>
+          <div id="aiAnalysisPanel" style="font-size:11px;line-height:1.8;">
+            <div style="color:rgba(255,255,255,0.2);text-align:center;padding:24px 0;">الصق وصفاً وانقر توليد</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ▌Right: CV Output + Chat ▌ -->
+      <div style="display:flex;flex-direction:column;overflow:hidden;min-height:0;">
+
+        <!-- CV Output (scrollable) -->
+        <div style="flex:1;overflow-y:auto;background:#fff;min-height:0;" id="aiCVOutputWrap">
+          <div id="aiCVOutput" style="padding:36px 44px;min-height:100%;font-family:Arial,sans-serif;">
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:380px;gap:14px;color:#ccc;">
+              <div style="font-size:56px;opacity:0.25;">✨</div>
+              <div style="font-size:14px;font-weight:600;color:#aaa;">سيظهر الـ CV المُولَّد هنا</div>
+              <div style="font-size:12px;color:#bbb;">الصق الوصف الوظيفي واضغط توليد</div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Right: Generated CV output -->
-      <div style="overflow-y:auto;background:#fff;" id="aiCVOutputWrap">
-        <div id="aiCVOutput" style="padding:40px 48px;min-height:100%;font-family:'Georgia',serif;">
-          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:400px;gap:16px;color:#bbb;">
-            <div style="font-size:64px;opacity:0.3;">✨</div>
-            <div style="font-size:15px;font-weight:600;">سيظهر الـ CV المُولَّد هنا</div>
-            <div style="font-size:13px;">الصق الوصف الوظيفي واضغط توليد</div>
+        <!-- ── Chat Refinement Bar ── -->
+        <div style="border-top:1px solid rgba(255,255,255,0.08);background:#0d0d14;padding:12px 16px;flex-shrink:0;">
+          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.35);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">💬 تعديل وتحسين الـ CV</div>
+          <div style="display:flex;gap:8px;align-items:flex-end;">
+            <textarea id="aiChatInput" placeholder="اكتب طلبك… مثال: أضف المزيد من مهارات الشبكات · اجعل الملخص أقصر · ركز على خبرة PV · غيّر الأسلوب ليكون أكثر احترافية"
+              style="flex:1;padding:10px 12px;background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.1);border-radius:11px;color:#fff;font-size:12px;line-height:1.5;resize:none;outline:none;font-family:inherit;height:52px;max-height:120px;box-sizing:border-box;"
+              rows="2"></textarea>
+            <button id="aiChatSend"
+              style="padding:10px 16px;border-radius:11px;border:none;background:rgba(99,102,241,0.8);color:#fff;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .2s;">
+              إرسال ↵
+            </button>
           </div>
+          <!-- Chat history (compact) -->
+          <div id="aiChatHistory" style="margin-top:8px;max-height:80px;overflow-y:auto;display:none;"></div>
         </div>
-      </div>
 
+      </div>
     </div>
 
-    <!-- Status bar -->
-    <div id="aiStatusBar" style="padding:10px 24px;border-top:1px solid rgba(255,255,255,0.07);background:rgba(0,0,0,0.3);font-size:12px;color:rgba(255,255,255,0.4);display:flex;align-items:center;gap:8px;flex-shrink:0;">
-      <span id="aiStatusDot" style="width:8px;height:8px;border-radius:50%;background:#3f3f50;flex-shrink:0;"></span>
+    <!-- ── Status Bar ── -->
+    <div id="aiStatusBar" style="padding:8px 20px;border-top:1px solid rgba(255,255,255,0.06);background:rgba(0,0,0,0.4);font-size:11px;color:rgba(255,255,255,0.35);display:flex;align-items:center;gap:8px;flex-shrink:0;">
+      <span id="aiStatusDot" style="width:7px;height:7px;border-radius:50%;background:#3f3f50;flex-shrink:0;"></span>
       <span id="aiStatusText">جاهز</span>
     </div>
 
@@ -342,6 +341,8 @@
 <script src="data.js" defer></script>
 <script src="drive_config.js" defer></script>
 <script src="app.js" defer></script>
+<script src="drive_manager.js" defer></script>
+<script src="cv_editor.js" defer></script>
 <script src="ai_tailor.js" defer></script>
 
 <!-- Branch Picker Modal -->

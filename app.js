@@ -881,6 +881,18 @@ function init(){
   if(backdrop) backdrop.onclick = closeBranchModal;
   document.addEventListener("keydown",(e)=>{ if(e.key==="Escape"){ closeBranchModal(); closeMergeModal(); } });
 
+  // ── Expose global API for ai_tailor.js ──────────────────────────
+  window.__cvApp = {
+    getData:      ()       => DATA,
+    getActiveTab: ()       => activeTabId,
+    setTab:       (tabId)  => { activeTabId = tabId; activeBranchId = null; },
+    renderAll,
+    renderTabs,
+    renderBranches
+  };
+}
+init();
+
 
 // ════════════════════════════════════════════════════════════════════
 //  GOOGLE DRIVE — FOLDER EMBED (iframe, no API needed)
