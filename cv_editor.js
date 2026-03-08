@@ -552,6 +552,117 @@
       }
     }
 
+    // ── 7b. PROJECTS ─────────────────────────────────────────────
+    const projWrap = $("projects");
+    if (projWrap) {
+      const app    = getApp();
+      const tabId  = app?.getActiveTab();
+      const allProjs = DATA.projects || [];
+
+      projWrap.querySelectorAll(".item").forEach((box) => {
+        if (box.dataset.cvEditable) return;
+        box.dataset.cvEditable = "1";
+
+        // Use the reference stored by renderProjects — no index mismatch
+        const proj = box.__cvProject;
+        if (!proj) return;
+
+        box.style.position = "relative";
+
+        // ── Delete whole project ──
+        const delBtn = document.createElement("button");
+        delBtn.className = "cv-del-btn";
+        delBtn.innerHTML = "✕";
+        delBtn.title = "حذف المشروع";
+        delBtn.addEventListener("click", e => {
+          e.stopPropagation();
+          if (confirm(`حذف "${proj.name}" ؟`)) {
+            // Remove this tab from tab_ids (don't fully delete if used elsewhere)
+            proj.tab_ids = (proj.tab_ids || []).filter(t => t !== tabId);
+            // If no more tabs reference it, remove from array entirely
+            if (!proj.tab_ids.length) {
+              DATA.projects = allProjs.filter(p => p !== proj);
+            }
+            rerender(); refreshEditor();
+          }
+        });
+        box.appendChild(delBtn);
+
+        // ── Edit project name ──
+        const nameEl = box.querySelector(".itemTitle");
+        if (nameEl) {
+          nameEl.title = "دبل-كليك لتعديل اسم المشروع";
+          makeEditable(nameEl, val => { proj.name = val; rerender(); refreshEditor(); });
+        }
+
+        // ── Edit project summary ──
+        const metaEl = box.querySelector(".itemMeta");
+        if (metaEl) {
+          metaEl.title = "دبل-كليك لتعديل وصف المشروع";
+          makeEditable(metaEl, val => { proj.summary = val; rerender(); refreshEditor(); });
+        }
+
+        // ── Edit bullets ──
+        const ulEl = box.querySelector("ul");
+        if (ulEl) {
+          ulEl.querySelectorAll("li").forEach((li, bi) => {
+            if (li.dataset.cvEditable) return;
+            li.dataset.cvEditable = "1";
+            li.style.position = "relative";
+            li.style.paddingRight = "22px";
+            li.title = "دبل-كليك لتعديل";
+
+            // Delete bullet
+            const bdel = document.createElement("button");
+            bdel.style.cssText = "display:none;position:absolute;right:0;top:2px;width:16px;height:16px;border-radius:50%;border:none;background:#fee2e2;color:#c0392b;font-size:10px;font-weight:900;cursor:pointer;z-index:10;";
+            bdel.innerHTML = "✕";
+            bdel.className = "cv-del-btn";
+            bdel.addEventListener("click", e => {
+              e.stopPropagation();
+              proj.bullets = (proj.bullets || []).filter((_, idx) => idx !== bi);
+              rerender(); refreshEditor();
+            });
+            li.appendChild(bdel);
+
+            makeEditable(li, val => {
+              if (!proj.bullets) proj.bullets = [];
+              proj.bullets[bi] = val;
+              rerender(); refreshEditor();
+            });
+          });
+
+          // Add bullet
+          if (!ulEl.nextElementSibling?.classList?.contains("cv-add-btn")) {
+            const addBullet = document.createElement("button");
+            addBullet.className = "cv-add-btn";
+            addBullet.innerHTML = "＋ إضافة نقطة";
+            addBullet.style.marginTop = "6px";
+            addBullet.addEventListener("click", () => {
+              if (!editMode) return;
+              const val = prompt("النقطة الجديدة:");
+              if (val?.trim()) {
+                if (!proj.bullets) proj.bullets = [];
+                proj.bullets.push(val.trim());
+                rerender(); refreshEditor();
+              }
+            });
+            ulEl.parentElement?.insertBefore(addBullet, ulEl.nextSibling);
+          }
+        }
+      });
+
+      // ── Add new project button ──
+      if (!$("cvAddProjBtn")) {
+        const addProjBtn = document.createElement("button");
+        addProjBtn.id = "cvAddProjBtn";
+        addProjBtn.className = "cv-add-btn";
+        addProjBtn.innerHTML = "＋ إضافة مشروع جديد";
+        addProjBtn.style.cssText += "width:100%;justify-content:center;margin-top:12px;padding:10px;font-size:13px;";
+        addProjBtn.addEventListener("click", () => showAddProjForm(DATA, tabId));
+        projWrap.parentElement?.appendChild(addProjBtn);
+      }
+    }
+
     // ── 8. EDUCATION ───────────────────────────────────────────
     const eduWrap = $("education");
     if (eduWrap) {
@@ -598,6 +709,59 @@
         line.appendChild(del);
       });
     }
+  }
+
+  // ── Add Project Form ────────────────────────────────────────────
+  function showAddProjForm(DATA, tabId) {
+    const existing = $("cvAddProjForm");
+    if (existing) { existing.remove(); return; }
+
+    const projWrap = $("projects");
+    if (!projWrap) return;
+
+    const form = document.createElement("div");
+    form.id = "cvAddProjForm";
+    form.className = "cv-exp-form";
+    form.innerHTML = `
+      <div style="font-weight:800;font-size:13px;color:#1a1a2e;margin-bottom:12px;">➕ إضافة مشروع جديد</div>
+      <label>اسم المشروع *</label>
+      <input id="pf_name" placeholder="مثال: Network Monitoring Dashboard" />
+      <label>وصف مختصر *</label>
+      <input id="pf_summary" placeholder="وصف قصير للمشروع وأهميته" />
+      <label>رابط (اختياري)</label>
+      <input id="pf_url" placeholder="https://..." />
+      <label>النقاط التفصيلية (كل سطر = نقطة)</label>
+      <textarea id="pf_bullets" rows="4" placeholder="طوّرت لوحة مراقبة بـ Python وـ Grafana&#10;خفّضت وقت الاستجابة للأحداث بنسبة 40%&#10;..."></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button id="pf_save"   style="padding:8px 18px;border-radius:9px;border:none;background:#c0392b;color:#fff;font-weight:700;font-size:13px;cursor:pointer;">حفظ</button>
+        <button id="pf_cancel" style="padding:8px 14px;border-radius:9px;border:1.5px solid #ddd;background:#fff;color:#555;font-size:13px;cursor:pointer;">إلغاء</button>
+      </div>
+    `;
+
+    projWrap.parentElement?.appendChild(form);
+
+    $("pf_cancel").addEventListener("click", () => form.remove());
+    $("pf_save").addEventListener("click", () => {
+      const name    = $("pf_name")?.value.trim();
+      const summary = $("pf_summary")?.value.trim();
+      if (!name || !summary) { alert("الاسم والوصف مطلوبان"); return; }
+
+      const bullets = ($("pf_bullets")?.value || "")
+        .split("\n").map(s => s.trim()).filter(Boolean);
+      const url = $("pf_url")?.value.trim() || "";
+
+      const entry = {
+        name, summary, bullets, url,
+        tab_ids: [tabId],
+        keywords: []
+      };
+
+      if (!DATA.projects) DATA.projects = [];
+      DATA.projects.unshift(entry);
+      form.remove();
+      rerender();
+      refreshEditor();
+    });
   }
 
   // ── Add Experience Form ──────────────────────────────────────
@@ -684,45 +848,41 @@
     }
   }
 
-  // ── Inject toggle button into sidebar ────────────────────────
-  function injectToggleBtn() {
-    const sidebar = document.querySelector(".sidebar");
-    if (!sidebar) return;
-
-    // Banner
-    const banner = document.createElement("div");
-    banner.id = "cvEditBanner";
-    banner.innerHTML = `✏️ وضع التعديل مفعّل — دبل-كليك لتعديل أي نص · اضغط ✕ لحذف أي عنصر`;
-    const main = document.querySelector("main");
-    if (main) main.prepend(banner);
-
-    // Toggle button
-    const wrap = document.createElement("div");
-    wrap.style.cssText = "padding: 12px 14px; border-top: 1px solid var(--border, #eee); margin-top: 6px;";
-    wrap.innerHTML = `<button id="cvEditToggle">✏️ تعديل الـ CV</button>
-      <div style="font-size:11px;color:#aaa;margin-top:5px;line-height:1.5;">دبل-كليك لتعديل · ✕ للحذف · ＋ للإضافة</div>`;
-    sidebar.appendChild(wrap);
-
-    $("cvEditToggle").addEventListener("click", toggleEditMode);
-  }
+  // injectToggleBtn removed — wiring is done in DOMContentLoaded directly
 
   // ── Init ─────────────────────────────────────────────────────
   window.addEventListener("DOMContentLoaded", () => {
-    // Inject CSS
+    // Inject CSS immediately
     const style = document.createElement("style");
     style.textContent = STYLE;
     document.head.appendChild(style);
 
-    // Wait for app to be ready
-    const tryInit = setInterval(() => {
-      if (window.__cvApp) {
-        clearInterval(tryInit);
-        injectToggleBtn();
+    // Wire the button IMMEDIATELY — it is already in the HTML
+    const btn = $("cvEditToggle");
+    if (btn) {
+      btn.addEventListener("click", toggleEditMode);
+    } else {
+      // Fallback: poll until button exists (shouldn't normally happen)
+      const btnPoll = setInterval(() => {
+        const b = $("cvEditToggle");
+        if (b) { b.addEventListener("click", toggleEditMode); clearInterval(btnPoll); }
+      }, 50);
+    }
 
-        // Re-attach after every renderAll
-        const origRenderAll = window.__cvApp.renderAll;
+    // Inject edit-mode banner (hidden until activated)
+    const banner = document.createElement("div");
+    banner.id = "cvEditBanner";
+    banner.innerHTML = "✏️ وضع التعديل مفعّل — دبل-كليك لتعديل · ✕ للحذف · ＋ للإضافة";
+    const cvRoot = $("cvRoot") || document.querySelector(".content");
+    if (cvRoot) cvRoot.prepend(banner);
+
+    // Wait for __cvApp then patch renderAll for auto-refresh
+    const tryPatch = setInterval(() => {
+      if (window.__cvApp) {
+        clearInterval(tryPatch);
+        const orig = window.__cvApp.renderAll;
         window.__cvApp.renderAll = function() {
-          origRenderAll.call(this);
+          orig.call(this);
           refreshEditor();
         };
       }

@@ -750,6 +750,7 @@ function renderProjects(){
     }
     const box = document.createElement("div");
     box.className = "item";
+    box.__cvProject = p; // ← store reference for cv_editor.js
     const link = p.url ? `<div class="muted"><a href="${escapeHtml(p.url)}" target="_blank" rel="noopener">Open link</a></div>` : "";
     box.innerHTML = `
       <div class="itemTitle">${escapeHtml(p.name||"")}</div>
