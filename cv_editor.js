@@ -274,7 +274,14 @@
     const app     = getApp();
     if (!DATA || !app) return;
 
-    const tabId   = app.getActiveTab();
+    const tabId = app.getActiveTab();
+
+    // ── Merge mode — special handling ─────────────────────────
+    if (tabId === "__merged__") {
+      attachMergeEditHandlers(DATA);
+      return;
+    }
+
     const profile = DATA.curated?.[tabId];
     if (!profile) return;
 
@@ -756,8 +763,19 @@
         keywords: []
       };
 
-      if (!DATA.projects) DATA.projects = [];
-      DATA.projects.unshift(entry);
+      // For merge mode (__merged__), add to snapshot.projects
+      // For normal tabs, add to DATA.projects with tab_ids
+      if (tabId === "__merged__") {
+        const snapshot = getData()?.curated?.["__merged__"];
+        if (snapshot) {
+          if (!snapshot.projects) snapshot.projects = [];
+          snapshot.projects.unshift(entry);
+        }
+      } else {
+        const DATA = getData();
+        if (!DATA.projects) DATA.projects = [];
+        DATA.projects.unshift(entry);
+      }
       form.remove();
       rerender();
       refreshEditor();
@@ -834,17 +852,332 @@
 
     if (editMode) {
       main.classList.add("cv-edit-mode");
-      if (toggleBtn) { toggleBtn.classList.add("active"); toggleBtn.innerHTML = "✏️ وضع التعديل: مفعّل"; }
+      if (toggleBtn) { toggleBtn.classList.add("active"); toggleBtn.textContent = "✏️ Editing ON"; }
       if (banner)    { banner.classList.add("visible"); }
       attachEditHandlers();
     } else {
       main.classList.remove("cv-edit-mode");
-      if (toggleBtn) { toggleBtn.classList.remove("active"); toggleBtn.innerHTML = "✏️ تعديل الـ CV"; }
+      if (toggleBtn) { toggleBtn.classList.remove("active"); toggleBtn.textContent = "✏️ Edit Mode"; }
       if (banner)    { banner.classList.remove("visible"); }
-      // Remove all add buttons
-      document.querySelectorAll(".cv-add-btn, #cvAddExpForm").forEach(el => el.remove());
-      // Clear editable flags so they can be re-attached next time
+      document.querySelectorAll(".cv-add-btn, #cvAddExpForm, #cvAddProjForm, #mergeEditNotice").forEach(el => el.remove());
       document.querySelectorAll("[data-cv-editable]").forEach(el => delete el.dataset.cvEditable);
+    }
+  }
+
+  // ── MERGE MODE EDITOR ─────────────────────────────────────────
+  // After merge, DATA.curated["__merged__"] is a standalone snapshot.
+  // Editing works exactly like a normal tab — no source-tab restrictions.
+  function attachMergeEditHandlers(DATA) {
+    const profile = DATA.curated?.["__merged__"];
+    if (!profile) return;
+
+    // ── Summary ──────────────────────────────────────────────────
+    const summaryEl = $("summary");
+    if (summaryEl && !summaryEl.dataset.cvEditable) {
+      summaryEl.dataset.cvEditable = "1";
+      summaryEl.title = "دبل-كليك لتعديل الملخص";
+      makeEditable(summaryEl, val => { profile.summary = val; rerender(); refreshEditor(); });
+    }
+
+    // ── Experience ───────────────────────────────────────────────
+    const expWrap = $("experience");
+    if (expWrap) {
+      const expData = profile.experience || [];
+
+      expWrap.querySelectorAll(".item").forEach((box, i) => {
+        if (box.dataset.cvEditable) return;
+        box.dataset.cvEditable = "1";
+        box.style.position = "relative";
+        const expEntry = expData[i];
+        if (!expEntry) return;
+
+        // Delete whole entry
+        const delBtn = document.createElement("button");
+        delBtn.className = "cv-del-btn";
+        delBtn.innerHTML = "✕";
+        delBtn.addEventListener("click", e => {
+          e.stopPropagation();
+          if (confirm(`حذف "${expEntry.title}"؟`)) {
+            profile.experience = expData.filter((_, idx) => idx !== i);
+            rerender(); refreshEditor();
+          }
+        });
+        box.appendChild(delBtn);
+
+        // Edit title
+        const titleEl = box.querySelector(".itemTitle");
+        if (titleEl) makeEditable(titleEl, val => { expEntry.title = val; rerender(); refreshEditor(); });
+
+        // Edit meta (company/location/dates)
+        const metaEl = box.querySelector(".itemMeta");
+        if (metaEl) {
+          metaEl.title = "دبل-كليك لتعديل الشركة والموقع";
+          metaEl.addEventListener("dblclick", ev => {
+            if (!editMode) return;
+            ev.stopPropagation();
+            const company  = prompt("الشركة:", expEntry.company || "");
+            if (company  === null) return;
+            const location = prompt("الموقع:", expEntry.location || "");
+            if (location === null) return;
+            const dates    = prompt("التواريخ:", expEntry.dates || "");
+            if (dates    === null) return;
+            expEntry.company  = company;
+            expEntry.location = location;
+            expEntry.dates    = dates;
+            rerender(); refreshEditor();
+          });
+        }
+
+        // Edit bullets
+        const ulEl = box.querySelector("ul");
+        if (ulEl) {
+          ulEl.querySelectorAll("li").forEach((li, bi) => {
+            if (li.dataset.cvEditable) return;
+            li.dataset.cvEditable = "1";
+            li.style.position = "relative";
+            li.style.paddingRight = "22px";
+
+            const bdel = document.createElement("button");
+            bdel.style.cssText = "display:none;position:absolute;right:0;top:2px;width:16px;height:16px;border-radius:50%;border:none;background:#fee2e2;color:#c0392b;font-size:10px;font-weight:900;cursor:pointer;";
+            bdel.innerHTML = "✕";
+            bdel.className = "cv-del-btn";
+            bdel.addEventListener("click", e => {
+              e.stopPropagation();
+              expEntry.bullets = (expEntry.bullets || []).filter((_, idx) => idx !== bi);
+              rerender(); refreshEditor();
+            });
+            li.appendChild(bdel);
+            makeEditable(li, val => { if (expEntry.bullets) expEntry.bullets[bi] = val; rerender(); refreshEditor(); });
+          });
+
+          // Add bullet
+          if (!ulEl.nextElementSibling?.classList?.contains("cv-add-btn")) {
+            const addBtn = document.createElement("button");
+            addBtn.className = "cv-add-btn";
+            addBtn.innerHTML = "＋ إضافة نقطة";
+            addBtn.style.marginTop = "5px";
+            addBtn.addEventListener("click", () => {
+              const val = prompt("النقطة الجديدة:");
+              if (val?.trim()) {
+                if (!expEntry.bullets) expEntry.bullets = [];
+                expEntry.bullets.push(val.trim());
+                rerender(); refreshEditor();
+              }
+            });
+            ulEl.parentElement?.insertBefore(addBtn, ulEl.nextSibling);
+          }
+        }
+      });
+
+      // Add new experience
+      if (!$("cvAddExpBtn")) {
+        const addBtn = document.createElement("button");
+        addBtn.id = "cvAddExpBtn";
+        addBtn.className = "cv-add-btn";
+        addBtn.innerHTML = "＋ إضافة خبرة جديدة";
+        addBtn.style.cssText += "width:100%;justify-content:center;margin-top:12px;padding:10px;font-size:13px;";
+        addBtn.addEventListener("click", () => showAddExpForm(profile));
+        expWrap.parentElement?.appendChild(addBtn);
+      }
+    }
+
+    // ── Skills ───────────────────────────────────────────────────
+    const skillsWrap = $("skills");
+    if (skillsWrap) {
+      skillsWrap.querySelectorAll("span").forEach((chip, i) => {
+        if (chip.dataset.cvEditable) return;
+        chip.dataset.cvEditable = "1";
+        chip.style.position = "relative";
+        chip.title = "دبل-كليك لتعديل · ✕ للحذف";
+
+        const del = document.createElement("button");
+        del.style.cssText = "display:none;position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;border:none;background:#c0392b;color:#fff;font-size:10px;font-weight:900;cursor:pointer;z-index:10;align-items:center;justify-content:center;";
+        del.innerHTML = "✕";
+        del.className = "cv-del-btn";
+        del.addEventListener("click", e => {
+          e.stopPropagation();
+          if (profile.skills) profile.skills = profile.skills.filter((_, idx) => idx !== i);
+          rerender(); refreshEditor();
+        });
+        chip.appendChild(del);
+
+        chip.addEventListener("dblclick", ev => {
+          if (!editMode) return;
+          ev.stopPropagation();
+          const newVal = prompt("تعديل المهارة:", profile.skills?.[i] || "");
+          if (newVal !== null && newVal.trim()) {
+            if (profile.skills) profile.skills[i] = newVal.trim();
+            rerender(); refreshEditor();
+          }
+        });
+      });
+
+      // Add skill button
+      if (!$("cvAddSkillBtn")) {
+        const addBtn = document.createElement("button");
+        addBtn.id = "cvAddSkillBtn";
+        addBtn.className = "cv-add-btn";
+        addBtn.innerHTML = "＋ مهارة";
+        addBtn.addEventListener("click", () => {
+          const val = prompt("اسم المهارة الجديدة:");
+          if (val?.trim()) {
+            if (!profile.skills) profile.skills = [];
+            profile.skills.unshift(val.trim());
+            rerender(); refreshEditor();
+          }
+        });
+        skillsWrap.parentElement?.appendChild(addBtn);
+      }
+    }
+
+    // ── Certs ────────────────────────────────────────────────────
+    const certsWrap = $("certs");
+    if (certsWrap) {
+      const certsData = profile.certs || [];
+      certsWrap.querySelectorAll(".line").forEach((line, i) => {
+        if (line.dataset.cvEditable) return;
+        line.dataset.cvEditable = "1";
+        line.style.position = "relative";
+        line.style.paddingRight = "28px";
+        const cert = certsData[i];
+        if (!cert) return;
+
+        const del = document.createElement("button");
+        del.className = "cv-del-btn";
+        del.innerHTML = "✕";
+        del.addEventListener("click", e => {
+          e.stopPropagation();
+          if (confirm(`حذف "${cert.title || cert.name}"؟`)) {
+            profile.certs = certsData.filter((_, idx) => idx !== i);
+            rerender(); refreshEditor();
+          }
+        });
+        line.appendChild(del);
+
+        line.addEventListener("dblclick", ev => {
+          if (!editMode) return;
+          ev.stopPropagation();
+          const name   = prompt("اسم الشهادة:", cert.title || cert.name || "");
+          if (name   === null) return;
+          const issuer = prompt("الجهة:", cert.issuer || "");
+          if (issuer === null) return;
+          const date   = prompt("التاريخ:", cert.date || "");
+          if (date   === null) return;
+          cert.title  = name; cert.name   = name;
+          cert.issuer = issuer; cert.date = date;
+          rerender(); refreshEditor();
+        });
+      });
+
+      if (!$("cvAddCertBtn")) {
+        const addBtn = document.createElement("button");
+        addBtn.id = "cvAddCertBtn";
+        addBtn.className = "cv-add-btn";
+        addBtn.innerHTML = "＋ إضافة شهادة";
+        addBtn.addEventListener("click", () => {
+          const name = prompt("اسم الشهادة:");
+          if (!name?.trim()) return;
+          const issuer = prompt("الجهة (اختياري):") || "";
+          const date   = prompt("التاريخ (اختياري):") || "";
+          if (!profile.certs) profile.certs = [];
+          profile.certs.push({ title: name.trim(), name: name.trim(), issuer, date });
+          rerender(); refreshEditor();
+        });
+        certsWrap.parentElement?.appendChild(addBtn);
+      }
+    }
+
+    // ── Projects ─────────────────────────────────────────────────
+    const projWrap = $("projects");
+    if (projWrap) {
+      if (!profile.projects) profile.projects = [];
+      const projData = profile.projects;
+
+      projWrap.querySelectorAll(".item").forEach((box) => {
+        if (box.dataset.cvEditable) return;
+        box.dataset.cvEditable = "1";
+        box.style.position = "relative";
+
+        const proj = box.__cvProject;
+        if (!proj) return;
+
+        // Delete project
+        const delBtn = document.createElement("button");
+        delBtn.className = "cv-del-btn";
+        delBtn.innerHTML = "✕";
+        delBtn.title = "حذف المشروع";
+        delBtn.addEventListener("click", e => {
+          e.stopPropagation();
+          if (confirm(`حذف "${proj.name}"؟`)) {
+            profile.projects = projData.filter(p => p !== proj);
+            rerender(); refreshEditor();
+          }
+        });
+        box.appendChild(delBtn);
+
+        // Edit name
+        const nameEl = box.querySelector(".itemTitle");
+        if (nameEl) makeEditable(nameEl, val => { proj.name = val; rerender(); refreshEditor(); });
+
+        // Edit summary
+        const metaEl = box.querySelector(".itemMeta");
+        if (metaEl) makeEditable(metaEl, val => { proj.summary = val; rerender(); refreshEditor(); });
+
+        // Edit bullets
+        const ulEl = box.querySelector("ul");
+        if (ulEl) {
+          ulEl.querySelectorAll("li").forEach((li, bi) => {
+            if (li.dataset.cvEditable) return;
+            li.dataset.cvEditable = "1";
+            li.style.position = "relative";
+            li.style.paddingRight = "22px";
+
+            const bdel = document.createElement("button");
+            bdel.style.cssText = "display:none;position:absolute;right:0;top:2px;width:16px;height:16px;border-radius:50%;border:none;background:#fee2e2;color:#c0392b;font-size:10px;font-weight:900;cursor:pointer;";
+            bdel.innerHTML = "✕";
+            bdel.className = "cv-del-btn";
+            bdel.addEventListener("click", e => {
+              e.stopPropagation();
+              proj.bullets = (proj.bullets || []).filter((_, idx) => idx !== bi);
+              rerender(); refreshEditor();
+            });
+            li.appendChild(bdel);
+            makeEditable(li, val => {
+              if (!proj.bullets) proj.bullets = [];
+              proj.bullets[bi] = val;
+              rerender(); refreshEditor();
+            });
+          });
+
+          // Add bullet
+          if (!ulEl.nextElementSibling?.classList?.contains("cv-add-btn")) {
+            const addBullet = document.createElement("button");
+            addBullet.className = "cv-add-btn";
+            addBullet.innerHTML = "＋ نقطة";
+            addBullet.style.marginTop = "5px";
+            addBullet.addEventListener("click", () => {
+              const val = prompt("النقطة الجديدة:");
+              if (val?.trim()) {
+                if (!proj.bullets) proj.bullets = [];
+                proj.bullets.push(val.trim());
+                rerender(); refreshEditor();
+              }
+            });
+            ulEl.parentElement?.insertBefore(addBullet, ulEl.nextSibling);
+          }
+        }
+      });
+
+      // Add new project button
+      if (!$("cvAddProjBtn")) {
+        const addProjBtn = document.createElement("button");
+        addProjBtn.id = "cvAddProjBtn";
+        addProjBtn.className = "cv-add-btn";
+        addProjBtn.innerHTML = "＋ إضافة مشروع";
+        addProjBtn.style.cssText += "width:100%;justify-content:center;margin-top:10px;padding:10px;font-size:13px;";
+        addProjBtn.addEventListener("click", () => showAddProjForm(profile, "__merged__"));
+        projWrap.parentElement?.appendChild(addProjBtn);
+      }
     }
   }
 

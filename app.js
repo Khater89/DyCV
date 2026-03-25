@@ -29,7 +29,10 @@ function getBranching(tabId){
   return (DATA.branching && DATA.branching[tabId]) ? DATA.branching[tabId] : null;
 }
 function getProfile(){
-  if(mergeMode && activeTabId==='__merged__') return buildMergedModel();
+  if(mergeMode && activeTabId==='__merged__'){
+    // Use snapshotted editable data if available, else build dynamically
+    return DATA.curated?.["__merged__"] || buildMergedModel();
+  }
   const b = getBranching(activeTabId);
   if(b){
     const br = (b.branches||[]).find(x=>x.id===activeBranchId) || (b.branches||[]).find(x=>x.id===b.default) || (b.branches||[])[0];
@@ -38,7 +41,10 @@ function getProfile(){
   return DATA.curated?.[activeTabId] || {};
 }
 function getHighlights(){
-  if(mergeMode && activeTabId==='__merged__') return (buildMergedModel().merged_highlights||[]);
+  if(mergeMode && activeTabId==='__merged__'){
+    // Return empty — merged highlights shown from snapshot only
+    return DATA.auto_bullets?.["__merged__"] || [];
+  }
   const b = getBranching(activeTabId);
   if(b){
     const bid = activeBranchId || b.default;
@@ -390,11 +396,24 @@ function applyMerge(){
   const exitBtn = $("btnExitMerge");
   if(exitBtn) exitBtn.style.display = "inline-flex";
 
-  // Seed manual order once (based on current date sort)
+  // Build model and SNAPSHOT it into DATA so it becomes fully editable
   const model = buildMergedModel();
   if(!mergeExperienceOrder || !mergeExperienceOrder.length){
     mergeExperienceOrder = (model.experience||[]).map(e=>e._key);
   }
+
+  // ── Snapshot: copy merged result into DATA.curated.__merged ──
+  // This makes it independent — edits no longer affect source tabs
+  if(!DATA.curated) DATA.curated = {};
+  DATA.curated["__merged__"] = {
+    summary:    model.summary    || "",
+    experience: JSON.parse(JSON.stringify(model.experience || [])),
+    skills:     JSON.parse(JSON.stringify(model.skills     || [])),
+    certs:      JSON.parse(JSON.stringify(model.certs      || [])),
+    cert_images:JSON.parse(JSON.stringify(model.cert_images|| [])),
+    links:      JSON.parse(JSON.stringify(model.links      || [])),
+    projects:   JSON.parse(JSON.stringify(model.merged_projects || []))
+  };
 
   closeMergeModal();
   renderTabs();
@@ -410,7 +429,7 @@ function renderTabs(){
   const wrap = $("tabs");
   wrap.innerHTML = "";
 
-  // Merged CV pseudo-tab (opens merge builder)
+  // Merged CV pseudo-tab
   const m = document.createElement("button");
   m.className = "tabBtn" + (activeTabId==="__merged__" ? " active":"");
   m.innerHTML = `<div>
@@ -422,6 +441,9 @@ function renderTabs(){
   wrap.appendChild(m);
 
   (DATA.tabs||[]).forEach(t=>{
+    const wrapper = document.createElement("div");
+    wrapper.style.cssText = "position:relative;";
+
     const b = document.createElement("button");
     b.className = "tabBtn" + (t.id===activeTabId ? " active":"");
     b.innerHTML = `<div>
@@ -430,7 +452,6 @@ function renderTabs(){
     </div>
     <span class="badge">${escapeHtml(t.id)}</span>`;
     b.onclick = ()=>{ 
-      // Exit merge mode when selecting a normal tab
       mergeMode = false;
       const exitBtn = $("btnExitMerge");
       if(exitBtn) exitBtn.style.display = "none";
@@ -440,10 +461,29 @@ function renderTabs(){
       renderBranches();
       renderAll();
       if(getBranching(activeTabId)) openBranchModal(activeTabId);
-      else window.scrollTo({ top: 0, behavior: 'smooth' });
+      else window.scrollTo({ top: 0, behavior: "smooth" });
     };
-    wrap.appendChild(b);
+    wrapper.appendChild(b);
+
+    // Tab action buttons (Reset / Extract) — shown on hover
+    const actions = document.createElement("div");
+    actions.className = "tab-actions";
+    actions.innerHTML = `
+      <button class="tab-action-btn tab-reset-btn" data-tab="${escapeHtml(t.id)}" title="Reset tab">↺ Reset</button>
+      <button class="tab-action-btn tab-extract-btn" data-tab="${escapeHtml(t.id)}" title="Extract from Drive">⬇ Extract</button>
+    `;
+    wrapper.appendChild(actions);
+    wrap.appendChild(wrapper);
   });
+
+  // Add new tab button
+  const addBtn = document.createElement("button");
+  addBtn.id = "btnAddTab";
+  addBtn.className = "tabBtn";
+  addBtn.style.cssText = "border:2px dashed rgba(192,57,43,.3);color:rgba(192,57,43,.7);justify-content:center;gap:6px;";
+  addBtn.innerHTML = `<span style="font-size:18px;line-height:1;">＋</span><div style="font-weight:700;font-size:13px;">إضافة تاب</div>`;
+  addBtn.onclick = ()=> window.__cvManager?.openAddTab?.();
+  wrap.appendChild(addBtn);
 }
 
 
@@ -549,7 +589,7 @@ function renderHighlights(){
 function renderMergeEditor(){
   const card = $("mergeEditCard");
   const list = $("mergeEditList");
-  const btnAuto = $("btnMergeAutoSort");
+  const btnAuto  = $("btnMergeAutoSort");
   const btnReset = $("btnMergeResetDates");
   if(!card || !list) return;
 
@@ -560,16 +600,13 @@ function renderMergeEditor(){
 
   card.style.display = "block";
 
-  const model = buildMergedModel();
+  // ── Use snapshot directly (DATA.curated["__merged__"]) ────────
+  const snapshot = DATA.curated?.["__merged__"];
+  if(!snapshot) return;
+  const exp = snapshot.experience || [];
 
-  // Seed order on first entry to merged mode
-  if(!mergeExperienceOrder || !mergeExperienceOrder.length){
-    mergeExperienceOrder = (model.experience||[]).map(e=>e._key);
-  }
-
-  // Build rows in the current model order
   list.innerHTML = "";
-  (model.experience||[]).forEach((e, i)=>{
+  exp.forEach((e, i)=>{
     const row = document.createElement("div");
     row.className = "mergeExpRow";
 
@@ -579,75 +616,75 @@ function renderMergeEditor(){
       <div class="muted mSub">${escapeHtml(e.location||"")}</div>
     `;
 
+    // Date input — edits snapshot directly
     const input = document.createElement("input");
     input.className = "mergeDateInput";
-    input.value = (mergeDateOverrides?.[e._key] || e.dates || "");
+    input.value = e.dates || "";
     input.placeholder = "e.g., Feb 2023 – Present";
     input.addEventListener("input", ()=>{
-      const v = String(input.value||"").trim();
-      if(v) mergeDateOverrides[e._key] = v;
-      else delete mergeDateOverrides[e._key];
-      // Re-render experience only (keep editor open)
+      e.dates = input.value.trim();
       renderExperience();
     });
 
+    // ↑ ↓ buttons — reorder snapshot array directly
     const btns = document.createElement("div");
     btns.className = "mergeBtns";
+
     const up = document.createElement("button");
     up.className = "mini";
     up.textContent = "↑";
     up.title = "Move up";
-    up.disabled = (i===0);
+    up.disabled = (i === 0);
     up.onclick = ()=>{
-      const idx = mergeExperienceOrder.indexOf(e._key);
-      if(idx>0){
-        const tmp = mergeExperienceOrder[idx-1];
-        mergeExperienceOrder[idx-1] = mergeExperienceOrder[idx];
-        mergeExperienceOrder[idx] = tmp;
-        renderMergeEditor();
-        renderExperience();
-      }
+      const arr = snapshot.experience;
+      [arr[i-1], arr[i]] = [arr[i], arr[i-1]];
+      renderMergeEditor();
+      renderExperience();
     };
+
     const down = document.createElement("button");
     down.className = "mini";
     down.textContent = "↓";
     down.title = "Move down";
-    down.disabled = (i===model.experience.length-1);
+    down.disabled = (i === exp.length - 1);
     down.onclick = ()=>{
-      const idx = mergeExperienceOrder.indexOf(e._key);
-      if(idx>=0 && idx < mergeExperienceOrder.length-1){
-        const tmp = mergeExperienceOrder[idx+1];
-        mergeExperienceOrder[idx+1] = mergeExperienceOrder[idx];
-        mergeExperienceOrder[idx] = tmp;
-        renderMergeEditor();
-        renderExperience();
-      }
+      const arr = snapshot.experience;
+      [arr[i], arr[i+1]] = [arr[i+1], arr[i]];
+      renderMergeEditor();
+      renderExperience();
     };
+
     btns.appendChild(up);
     btns.appendChild(down);
-
     row.appendChild(left);
     row.appendChild(input);
     row.appendChild(btns);
     list.appendChild(row);
   });
 
+  // Auto sort by date
   if(btnAuto){
     btnAuto.onclick = ()=>{
-      // Clear manual order then rebuild order by (possibly edited) dates
-      mergeExperienceOrder = [];
-      const m2 = buildMergedModel();
-      mergeExperienceOrder = (m2.experience||[]).map(e=>e._key);
+      if(!snapshot.experience) return;
+      snapshot.experience.sort((a, b)=>{
+        const ra = parseDateRange(a.dates);
+        const rb = parseDateRange(b.dates);
+        return (rb.end - ra.end) || (rb.start - ra.start);
+      });
       renderMergeEditor();
       renderExperience();
     };
   }
+
+  // Reset — restore from source tabs
   if(btnReset){
     btnReset.onclick = ()=>{
-      mergeDateOverrides = {};
-      // keep manual order, but reset dates to original
-      renderMergeEditor();
-      renderExperience();
+      if(confirm("إعادة بناء الترتيب من التابات الأصلية؟")){
+        const fresh = buildMergedModel();
+        snapshot.experience = JSON.parse(JSON.stringify(fresh.experience || []));
+        renderMergeEditor();
+        renderExperience();
+      }
     };
   }
 }
@@ -709,19 +746,24 @@ function renderProjects(){
   if(mergeMode && activeTabId==='__merged__'){
     const wrap = $("projects");
     if(!card || !wrap) return;
-    const projs = (buildMergedModel().merged_projects)||[];
-    if(!projs.length){ card.style.display="none"; return; }
-    card.style.display="block";
+    const snapshot = DATA.curated?.["__merged__"];
+    const projs = snapshot?.projects || [];
+    // Always show card so user can add projects
+    card.style.display = "block";
     wrap.innerHTML = "";
-    const scored = projs.map(p=>{ const blob=[p.name,p.summary,(p.bullets||[]).join(" "),(p.keywords||[]).join(" ")].join(" "); return {p, jd: scoreText(blob)}; }).sort((a,b)=>b.jd-a.jd);
-    scored.forEach(({p})=>{
-      if(searchTerm){ const blob = norm([p.name,p.summary,(p.bullets||[]).join(" "),(p.keywords||[]).join(" ")].join(" ")); if(!blob.includes(searchTerm)) return; }
-      const box = document.createElement("div");
-      box.className = "item";
-      const link = p.url ? `<div class="muted"><a href="${escapeHtml(p.url)}" target="_blank" rel="noopener">Open link</a></div>` : "";
-      box.innerHTML = `<div class="itemTitle">${escapeHtml(p.name||"")}</div><div class="itemMeta">${escapeHtml(p.summary||"")}</div>${link}<ul>${(p.bullets||[]).map(b=>`<li>${escapeHtml(b)}</li>`).join("")}</ul>`;
-      wrap.appendChild(box);
-    });
+    if(!projs.length){
+      wrap.innerHTML = `<div class="muted">لا توجد مشاريع — استخدم ＋ لإضافة مشروع</div>`;
+    } else {
+      projs.forEach((p)=>{
+        if(searchTerm){ const blob = norm([p.name,p.summary,(p.bullets||[]).join(" "),(p.keywords||[]).join(" ")].join(" ")); if(!blob.includes(searchTerm)) return; }
+        const box = document.createElement("div");
+        box.className = "item";
+        box.__cvProject = p;
+        const link = p.url ? `<div class="muted"><a href="${escapeHtml(p.url)}" target="_blank" rel="noopener">Open link</a></div>` : "";
+        box.innerHTML = `<div class="itemTitle">${escapeHtml(p.name||"")}</div><div class="itemMeta">${escapeHtml(p.summary||"")}</div>${link}<ul>${(p.bullets||[]).map(b=>`<li>${escapeHtml(b)}</li>`).join("")}</ul>`;
+        wrap.appendChild(box);
+      });
+    }
     return;
   }
 
@@ -893,160 +935,3 @@ function init(){
   };
 }
 init();
-
-
-// ════════════════════════════════════════════════════════════════════
-//  GOOGLE DRIVE — FOLDER EMBED (iframe, no API needed)
-// ════════════════════════════════════════════════════════════════════
-(function () {
-  "use strict";
-
-  const FOLDER_ID = "19_uyZfXb19w8djIoJlPHwEjzFmLKinI_";
-
-  // known files for the preview sidebar (from the uploaded zip)
-  const KNOWN_FILES = [
-    { name: "Electrical Engineer CV",              hint: "Electrical engineer .pdf" },
-    { name: "Electrical Engineer 2025",            hint: "Electrica ENg 2025" },
-    { name: "Electrical Engineer 2026",            hint: "Electrical engineer-Khater2026" },
-    { name: "Electrical Supervisor",               hint: "Electrical Supervisor" },
-    { name: "PV / Solar Engineer",                 hint: "PV ven v6" },
-    { name: "Engineering Management",              hint: "EngineeringManagement001" },
-    { name: "Network Engineer CV",                 hint: "Network ENG 98" },
-    { name: "Network Engineer V-CV",               hint: "Network ENG - V CV" },
-    { name: "NOC Engineer",                        hint: "NOC Engineer" },
-    { name: "NOC Engineer v4",                     hint: "Noc Engineer  4_" },
-    { name: "Network Cover Letter",                hint: "NetworkCL" },
-    { name: "NOC Engineer Resume (formal)",        hint: "Resume_NOCEngineer" },
-    { name: "Sales Engineer",                      hint: "Sales Engineer  005" },
-    { name: "Coordinator — Logistics & PM",        hint: "Coordinator  CV" },
-    { name: "Logistics Resume",                    hint: "Resume_LOgist" },
-    { name: "General Resume",                      hint: "AbdelrahmanKhaterResume (5)" },
-    { name: "General Resume v2",                   hint: "Resume_2" },
-    { name: "Interview Preparation",               hint: "Interview_Preparation" },
-  ];
-
-  const $ = id => document.getElementById(id);
-
-  // ── Switch view tabs ────────────────────────────────────────────
-  function setView(view) {
-    ["list","grid","preview"].forEach(v => {
-      const el = $("driveView" + v.charAt(0).toUpperCase() + v.slice(1));
-      if (el) el.style.display = (v === view) ? "block" : "none";
-    });
-
-    document.querySelectorAll(".drive-tab-btn").forEach(btn => {
-      const isActive = btn.dataset.view === view;
-      btn.style.background      = isActive ? "#c0392b" : "#fff";
-      btn.style.color           = isActive ? "#fff"     : "#555";
-      btn.style.borderColor     = isActive ? "#c0392b" : "#ddd";
-    });
-
-    // Build sidebar when switching to preview
-    if (view === "preview") buildPreviewSidebar();
-  }
-
-  // ── Build file sidebar for preview mode ─────────────────────────
-  function buildPreviewSidebar() {
-    const list = $("driveFileList");
-    if (!list || list.dataset.built) return;
-    list.dataset.built = "1";
-    list.innerHTML = "";
-
-    // Try API first, fall back to known files
-    fetchFilesFromAPI()
-      .then(files => renderSidebar(list, files))
-      .catch(() => renderSidebarFallback(list));
-  }
-
-  function renderSidebar(container, files) {
-    container.innerHTML = "";
-    files.forEach(f => {
-      const btn = makeSidebarBtn(f.name, () => {
-        showPreview(f.id, f.name);
-        container.querySelectorAll(".drive-file-btn").forEach(b => {
-          b.style.background = "";
-          b.style.color = "#333";
-          b.style.fontWeight = "600";
-        });
-        btn.style.background = "#c0392b";
-        btn.style.color = "#fff";
-      });
-      container.appendChild(btn);
-    });
-  }
-
-  function renderSidebarFallback(container) {
-    container.innerHTML = "";
-    KNOWN_FILES.forEach(f => {
-      const btn = makeSidebarBtn(f.name, () => {
-        // Can't preview without ID — open folder instead
-        window.open(`https://drive.google.com/drive/folders/${FOLDER_ID}`, "_blank");
-      });
-      container.appendChild(btn);
-    });
-
-    const note = document.createElement("p");
-    note.style.cssText = "font-size:11px;color:#aaa;padding:8px 10px;margin:4px 0 0;line-height:1.6;";
-    note.textContent = "انقر لفتح المجلد في Drive";
-    container.appendChild(note);
-  }
-
-  function makeSidebarBtn(label, onClick) {
-    const btn = document.createElement("button");
-    btn.className = "drive-file-btn";
-    btn.textContent = "📄 " + label;
-    btn.onclick = onClick;
-    btn.style.cssText = `
-      display:block;width:100%;text-align:left;padding:8px 10px;
-      border:none;background:none;cursor:pointer;border-radius:8px;
-      font-size:12px;color:#333;font-weight:600;transition:all .15s;
-      margin-bottom:2px;line-height:1.4;
-    `;
-    btn.addEventListener("mouseenter", () => {
-      if (btn.style.background !== "rgb(192, 57, 43)")
-        btn.style.background = "#f5f5f5";
-    });
-    btn.addEventListener("mouseleave", () => {
-      if (btn.style.background !== "rgb(192, 57, 43)")
-        btn.style.background = "";
-    });
-    return btn;
-  }
-
-  // ── Show PDF in preview frame ────────────────────────────────────
-  function showPreview(fileId, fileName) {
-    const frame = $("drivePreviewFrame");
-    const hint  = $("drivePreviewHint");
-    if (frame) frame.src = `https://drive.google.com/file/d/${fileId}/preview`;
-    if (hint)  hint.style.display = "none";
-  }
-
-  // ── Try Google Drive API (works if opener from http/https) ───────
-  async function fetchFilesFromAPI() {
-    const apiKey = (typeof DRIVE_CONFIG !== "undefined" && DRIVE_CONFIG.api_key) || "";
-    if (!apiKey) throw new Error("no key");
-
-    const q   = encodeURIComponent(`'${FOLDER_ID}' in parents and trashed=false`);
-    const url = `https://www.googleapis.com/drive/v3/files?q=${q}&key=${apiKey}&fields=files(id,name,mimeType)&pageSize=100&orderBy=name`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error("api error");
-    const data = await res.json();
-    return (data.files || []).filter(f =>
-      f.mimeType === "application/pdf" ||
-      f.mimeType.includes("document") ||
-      f.mimeType.includes("presentation")
-    );
-  }
-
-  // ── Init ──────────────────────────────────────────────────────────
-  window.addEventListener("DOMContentLoaded", function () {
-    // Tab buttons
-    document.querySelectorAll(".drive-tab-btn").forEach(btn => {
-      btn.addEventListener("click", () => setView(btn.dataset.view));
-    });
-
-    // Default view
-    setView("list");
-  });
-
-})();

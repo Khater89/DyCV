@@ -20,56 +20,130 @@
     </div>
   </div>
   <div class="right">
-    <button id="btnMerge" class="ghost">⊕ Merge</button>
-    <button id="btnExitMerge" class="ghost" style="display:none">✕ Exit Merge</button>
-    <button id="btnPrint" class="primary">⬇ Export PDF</button>
+    <button id="btnMerge" class="ghost" title="Merge experiences from multiple tabs">⊕ Merge</button>
+    <button id="btnExitMerge" class="ghost" style="display:none" title="Exit merge mode">✕ Exit Merge</button>
   </div>
 </header>
 
 <main class="layout">
   <aside class="sidebar">
+
+    <!-- ① Focus Area & Tabs -->
     <section class="card">
       <h2>Focus Area</h2>
       <div id="tabs"></div>
     </section>
 
+    <!-- ② Branches (hidden unless tab has branches) -->
     <section class="card" id="branchesCard" style="display:none">
       <h2 id="branchTitle">Branches</h2>
       <div id="branches"></div>
     </section>
 
+    <!-- ③ JD Tailoring -->
     <section class="card">
       <h2>JD Tailoring</h2>
-      <textarea id="jd" placeholder="Paste a Job Description here to auto-tailor the CV…"></textarea>
-      <div class="row">
-        <button id="btnTailor" class="primary">✦ Tailor Now</button>
-        <button id="btnClear">Clear</button>
-        <button id="btnAITailor" style="background:linear-gradient(135deg,#1a1a2e,#16213e);color:#fff;border:none;padding:10px 16px;border-radius:12px;cursor:pointer;font-weight:800;font-size:13px;display:inline-flex;align-items:center;gap:7px;box-shadow:0 4px 15px rgba(0,0,0,0.25);transition:all .2s;">
-          <span>✨</span> AI CV Builder
-        </button>
+      <textarea id="jd" placeholder="الصق الوصف الوظيفي هنا…"></textarea>
+      <div class="row" style="margin-top:8px;flex-wrap:wrap;gap:6px;">
+        <button id="btnTailor" class="primary" title="يُعيد ترتيب المحتوى حسب الـ JD">✦ Tailor</button>
+        <button id="btnClear" title="مسح الـ JD">✕</button>
+        <button id="btnAITailor" class="btn-ai" title="يولّد CV كامل بـ AI">✨ AI Builder</button>
       </div>
-      <div class="muted" style="margin-top:8px">Re-orders CV content to match the job description. Use <strong>AI CV Builder</strong> for a fully generated tailored CV.</div>
     </section>
 
+    <!-- ④ Search -->
     <section class="card">
       <h2>Search</h2>
-      <input id="search" placeholder="Filter by keyword — IEC, Spark, NOC…"/>
-      <div class="muted" style="margin-top:6px">Highlights matching items in the current tab.</div>
+      <input id="search" placeholder="IEC, Spark, NOC, Python…"/>
     </section>
 
+    <!-- ⑤ Quick Add: Skills / Certs / Tab -->
+    <section class="card" id="sideManagerCard">
+      <h2>Quick Add</h2>
+      <div class="seg-tabs">
+        <button class="side-mgr-tab active" data-smgr="skills">⚡ Skills</button>
+        <button class="side-mgr-tab"        data-smgr="certs">🎓 Certs</button>
+        <button class="side-mgr-tab"        data-smgr="addtab">＋ Tab</button>
+      </div>
+
+      <!-- Skills -->
+      <div id="smgrSkills">
+        <div class="muted small" style="margin-bottom:6px;">AI classifies to the right tab automatically</div>
+        <div style="display:flex;gap:6px;">
+          <input id="smgrSkillInput" placeholder="e.g. Fortinet NSE4…" style="flex:1;min-width:0;"/>
+          <button id="smgrSkillSave" class="btn-add">＋</button>
+        </div>
+        <div id="smgrSkillStatus" class="status-hint"></div>
+      </div>
+
+      <!-- Certs -->
+      <div id="smgrCerts" style="display:none;">
+        <input id="smgrCertName"   placeholder="Certificate name *" style="width:100%;margin-bottom:5px;box-sizing:border-box;"/>
+        <div style="display:flex;gap:5px;margin-bottom:5px;">
+          <input id="smgrCertIssuer" placeholder="Issuer" style="flex:1;min-width:0;"/>
+          <input id="smgrCertDate" type="month" style="width:110px;"/>
+        </div>
+        <div id="smgrCertDropZone" class="drop-zone">
+          📎 Click or drag certificate file
+          <input type="file" id="smgrCertFile" accept=".pdf,.jpg,.jpeg,.png" style="display:none;"/>
+        </div>
+        <div id="smgrCertFileName" class="status-hint" style="color:#c0392b;"></div>
+        <button id="smgrCertSave" class="btn-primary-full" style="margin-top:6px;">＋ Add Certificate</button>
+        <div id="smgrCertStatus" class="status-hint"></div>
+      </div>
+
+      <!-- Add Tab -->
+      <div id="smgrAddTab" style="display:none;">
+        <input id="smgrTabLabel" placeholder="Tab name *" style="width:100%;margin-bottom:5px;box-sizing:border-box;"/>
+        <input id="smgrTabSub"   placeholder="Subtitle (optional)" style="width:100%;margin-bottom:5px;box-sizing:border-box;"/>
+        <button id="smgrTabSave" class="btn-primary-full" style="background:#1a1a2e;">＋ Add Tab</button>
+        <div id="smgrTabStatus" class="status-hint"></div>
+      </div>
+    </section>
+
+    <!-- ⑥ Tools row -->
+    <section class="card">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button id="cvEditToggle" class="tool-btn" title="Double-click to edit any field · ✕ to delete · ＋ to add">
+          ✏️ Edit Mode
+        </button>
+        <button id="btnPrint" class="tool-btn tool-btn-accent" title="Export to PDF">
+          ⬇ Export
+        </button>
+      </div>
+    </section>
+
+    <!-- ⑦ Google Drive sync -->
+    <section class="card" id="driveDbCard">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <span style="font-weight:700;font-size:12px;color:#1a1a2e;">☁ Google Drive</span>
+        <span id="driveDbStatus"></span>
+      </div>
+      <button id="driveSignInBtn" class="btn-google">
+        <svg width="14" height="14" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Sign in with Google
+      </button>
+      <div id="driveDbInfo" style="display:none;">
+        <div class="muted small" style="margin-bottom:6px;">Auto-saves to cv_data.json in Drive</div>
+        <div style="display:flex;gap:6px;">
+          <button id="driveSaveNowBtn" class="btn-save-drive">⬆ Save Now</button>
+          <button id="driveSignOutBtn" class="btn-ghost-sm">Sign out</button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Advanced -->
     <section class="card muted">
       <details>
-        <summary style="cursor:pointer;font-weight:600;font-size:12px">Advanced — document extraction status</summary>
-        <div id="docStatus" class="muted" style="margin-top:8px"></div>
+        <summary style="cursor:pointer;font-weight:600;font-size:11px;">⚙ Advanced</summary>
+        <div id="docStatus" class="muted" style="margin-top:8px;font-size:11px;"></div>
       </details>
     </section>
-    <section class="card">
-      <button id="cvEditToggle">✏️ تعديل الـ CV</button>
-      <div class="muted" style="margin-top:5px;font-size:11px;line-height:1.5;">دبل-كليك لتعديل · ✕ للحذف · ＋ للإضافة</div>
-    </section>
+
   </aside>
 
-  <section class="content" id="cvRoot">
+  <section class="content"on class="content" id="cvRoot">
     <!-- Hero -->
     <div class="card hero">
       <div>
@@ -148,86 +222,6 @@
       <div id="education"></div>
     </section>
 
-    <!-- ══ Google Drive — Folder Embed ════════════════════════════════ -->
-    <section class="card" id="drivePdfCard">
-
-      <!-- ── Header ───────────────────────────────────────────── -->
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
-        <div>
-          <h2 style="margin:0 0 3px;">📁 ملفات الـ CV — Google Drive</h2>
-          <p class="muted" style="margin:0;font-size:12px;" id="driveFolderCount">جاري التحميل…</p>
-        </div>
-        <button id="driveAddFolderBtn"
-          style="padding:9px 16px;border:1.5px solid #c0392b;border-radius:10px;
-            font-size:13px;font-weight:700;cursor:pointer;background:#fff;color:#c0392b;
-            display:inline-flex;align-items:center;gap:6px;transition:all .18s;">
-          ➕ إضافة مجلد
-        </button>
-      </div>
-
-      <!-- ── Add Folder Panel (hidden by default) ────────────── -->
-      <div id="driveAddPanel" style="display:none;background:#f9f9f9;border:1.5px solid #eee;
-        border-radius:14px;padding:14px 16px;margin-bottom:14px;">
-        <div style="font-size:13px;font-weight:700;color:#333;margin-bottom:8px;">➕ إضافة مجلد Google Drive</div>
-        <div style="font-size:12px;color:#888;margin-bottom:10px;">
-          الصق رابط المجلد من Google Drive (مثال: https://drive.google.com/drive/folders/FOLDER_ID)
-        </div>
-        <div style="display:flex;gap:8px;">
-          <input id="driveNewFolderInput" placeholder="https://drive.google.com/drive/folders/…"
-            style="flex:1;padding:9px 12px;border:1.5px solid #ddd;border-radius:10px;
-              font-size:13px;outline:none;transition:border-color .2s;" />
-          <input id="driveNewFolderName" placeholder="اسم المجلد (اختياري)"
-            style="width:160px;padding:9px 12px;border:1.5px solid #ddd;border-radius:10px;
-              font-size:13px;outline:none;" />
-          <button id="driveAddConfirmBtn"
-            style="padding:9px 18px;border:none;border-radius:10px;background:#c0392b;
-              color:#fff;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">
-            إضافة ✓
-          </button>
-          <button id="driveAddCancelBtn"
-            style="padding:9px 14px;border:1.5px solid #ddd;border-radius:10px;
-              background:#fff;color:#555;font-size:13px;cursor:pointer;">
-            إلغاء
-          </button>
-        </div>
-        <div id="driveAddError" style="display:none;color:#c0392b;font-size:12px;margin-top:6px;"></div>
-      </div>
-
-      <!-- ── Folder Tabs ──────────────────────────────────────── -->
-      <div id="driveFolderTabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;
-        border-bottom:1.5px solid #f0f0f0;padding-bottom:12px;">
-        <!-- injected by JS -->
-      </div>
-
-      <!-- ── View mode tabs ────────────────────────────────────── -->
-      <div style="display:flex;gap:8px;margin-bottom:14px;">
-        <button class="drive-tab-btn active-drive-tab" data-view="list"
-          style="padding:7px 14px;border-radius:8px;border:1.5px solid #c0392b;
-            background:#c0392b;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">
-          📋 قائمة
-        </button>
-        <button class="drive-tab-btn" data-view="grid"
-          style="padding:7px 14px;border-radius:8px;border:1.5px solid #ddd;
-            background:#fff;color:#555;font-size:12px;font-weight:700;cursor:pointer;">
-          ⊞ شبكة
-        </button>
-      </div>
-
-      <!-- ── Folder viewer (iframe swaps per folder & view) ───── -->
-      <div id="driveFolderViewer">
-        <iframe id="driveFolderIframe"
-          src=""
-          style="width:100%;height:520px;border:1.5px solid #eee;border-radius:14px;background:#fff;"
-          allow="autoplay">
-        </iframe>
-        <p class="muted" style="font-size:12px;margin:8px 0 0;text-align:center;">
-          انقر على أي ملف لتفتحه · <span id="driveActiveFolderLink"></span>
-        </p>
-      </div>
-
-    </section>
-    <!-- ══════════════════════════════════════════════════════════════════ -->
-
     <footer class="footer muted">Offline-friendly · Open in browser · Print to PDF</footer>
   </section>
 </main>
@@ -243,7 +237,7 @@
         <div style="width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#a855f7);display:flex;align-items:center;justify-content:center;font-size:17px;">✨</div>
         <div>
           <div style="font-weight:800;font-size:15px;color:#fff;">AI CV Builder — ATS Optimized</div>
-          <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:1px;">Powered by Claude · يملأ حقول الـ CV تلقائياً</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:1px;">Powered by Gemini 2.0 Flash · مجاني · يملأ حقول الـ CV تلقائياً</div>
         </div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;">
@@ -267,12 +261,12 @@
         <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.06);">
           <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.35);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;">🔑 API Key</div>
           <div style="position:relative;">
-            <input id="aiKeyInput" type="password" placeholder="sk-ant-…"
+            <input id="aiKeyInput" type="password" placeholder="AIza…"
               style="width:100%;padding:8px 32px 8px 10px;background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.1);border-radius:9px;color:#fff;font-size:11px;outline:none;font-family:monospace;box-sizing:border-box;"/>
             <button id="aiKeyToggle" style="position:absolute;right:7px;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(255,255,255,0.35);cursor:pointer;font-size:13px;padding:0;">👁</button>
           </div>
           <div style="font-size:10px;color:rgba(255,255,255,0.2);margin-top:3px;">
-            <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:#7c7cfc;">console.anthropic.com</a> — يُحفظ تلقائياً
+            <a href="https://aistudio.google.com/apikey" target="_blank" style="color:#7c7cfc;">aistudio.google.com</a> — يُحفظ تلقائياً
           </div>
         </div>
 
@@ -342,10 +336,16 @@
 </div>
 <!-- ════════════════════════════════════════════════════════════════ -->
 
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async></script>
+<script src="google_config.js"></script>
+
 <script src="data.js" defer></script>
 <script src="drive_config.js" defer></script>
 <script src="app.js" defer></script>
 <script src="drive_manager.js" defer></script>
+<script src="drive_db.js" defer></script>
+<script src="cv_manager.js" defer></script>
 <script src="cv_editor.js" defer></script>
 <script src="ai_tailor.js" defer></script>
 

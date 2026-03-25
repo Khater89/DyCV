@@ -556,7 +556,7 @@ Rules:
       try {
         const r = await addSkillAI(text);
         if (r) {
-          if (status) status.innerHTML = `✅ أضيفت لـ <b>${r.tabId}</b> — ${r.reason || ""}`;
+          if (status) status.innerHTML = `✅ Added to <b>${r.tabId}</b> — ${r.reason || ""}`;
           input.value = "";
           rerender();
         }

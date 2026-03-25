@@ -19,8 +19,8 @@
   let isGenerating  = false;
 
   // ── API key ────────────────────────────────────────────────
-  function loadKey() { try { return localStorage.getItem("cv_ak") || ""; } catch(_) { return ""; } }
-  function saveKey(k){ try { localStorage.setItem("cv_ak", k); } catch(_) {} }
+  function loadKey() { try { return localStorage.getItem("gemini_key") || ""; } catch(_) { return ""; } }
+  function saveKey(k){ try { localStorage.setItem("gemini_key", k); } catch(_) {} }
 
   // ── Get all Drive folder names (for context) ───────────────
   function getDriveFoldersContext() {
@@ -36,125 +36,153 @@
   function buildCVContext() {
     if (typeof CV_DATA === "undefined") return "No CV data available.";
     const d = CV_DATA, p = d.person || {};
-    let ctx = `══ CANDIDATE PROFILE ══\n`;
-    ctx += `Name: ${p.name || "Abdelrahman Khater"}\n`;
+    let ctx = `CANDIDATE: ${p.name || "Abdelrahman Khater"}\n`;
     ctx += `Location: ${p.location || "Amman, Jordan"}\n`;
-    ctx += `Email: ${p.email || ""}\n`;
-    ctx += `Phone: ${p.phone || ""}\n\n`;
+    if (p.email) ctx += `Email: ${p.email}\n`;
+    if (p.phone) ctx += `Phone: ${p.phone}\n\n`;
 
-    // All curated tabs
-    for (const tid of Object.keys(d.curated || {})) {
+    const app    = window.__cvApp;
+    const active = app?.getActiveTab() || "";
+    const tabs   = Object.keys(d.curated || {}).filter(t => t !== "__merged__");
+    const order  = [active, ...tabs.filter(t => t !== active)];
+
+    for (const tid of order.slice(0, 5)) {
       const tab = d.curated[tid];
-      ctx += `\n══ ${tid.toUpperCase()} TAB ══\n`;
+      if (!tab) continue;
+      ctx += `\n=== ${tid.toUpperCase()} ===\n`;
       if (tab.summary) ctx += `Summary: ${tab.summary}\n\n`;
       (tab.experience || []).forEach(e => {
-        ctx += `▸ ${e.title} @ ${e.company} | ${e.location} | ${e.dates}\n`;
+        ctx += `Position: ${e.title} at ${e.company}, ${e.location} | ${e.dates}\n`;
         (e.bullets || []).forEach(b => ctx += `  • ${b}\n`);
+        ctx += "\n";
       });
       if ((tab.skills || []).length)
-        ctx += `\nSkills: ${tab.skills.join(", ")}\n`;
+        ctx += `Skills: ${tab.skills.join(", ")}\n`;
       if ((tab.certs || []).length) {
-        ctx += `\nCertifications:\n`;
+        ctx += `Certifications:\n`;
         tab.certs.forEach(c => ctx += `  • ${c.title || c.name}${c.issuer ? " — " + c.issuer : ""}${c.date ? " (" + c.date + ")" : ""}\n`);
       }
     }
 
-    // Education
     if ((d.education || []).length) {
-      ctx += `\n══ EDUCATION ══\n`;
-      d.education.forEach(e =>
-        ctx += `• ${e.degree || e.title} — ${e.institution || e.school} (${e.year || e.dates || ""})\n`
-      );
+      ctx += `\n=== EDUCATION ===\n`;
+      d.education.forEach(e => ctx += `• ${e.degree || e.title} — ${e.institution || e.school} (${e.year || e.dates || ""})\n`);
     }
 
-    // Projects
     if ((d.projects || []).length) {
-      ctx += `\n══ PROJECTS ══\n`;
-      d.projects.slice(0, 6).forEach(p =>
-        ctx += `• ${p.title}: ${(p.description || "").slice(0, 150)}\n`
+      ctx += `\n=== PROJECTS ===\n`;
+      d.projects.slice(0, 5).forEach(proj =>
+        ctx += `• ${proj.title}: ${(proj.description || proj.summary || "").slice(0, 200)}\n`
       );
     }
 
-    ctx += getDriveFoldersContext();
     return ctx;
   }
 
   // ── ATS-optimized system prompt ────────────────────────────
-  const SYSTEM_PROMPT = `You are a world-class CV writer and ATS (Applicant Tracking System) expert.
-Your CVs consistently pass ATS filters and get interviews.
+  const SYSTEM_PROMPT = `You are an expert CV writer. Create ATS-optimized tailored CVs. Always return exactly: ---ANALYSIS--- then ---DATA--- then ---CV---`
 
-ATS RULES YOU ALWAYS FOLLOW:
-- Use exact keywords from the job description (verbatim)
-- No tables, columns, headers/footers, text boxes, or graphics in the HTML
-- Simple clean single-column layout
-- Standard section headings: Professional Summary, Work Experience, Skills, Certifications, Education
-- Dates in standard format: MM/YYYY or Year
-- Spell out abbreviations once then use them
-- Quantify achievements with numbers/percentages wherever possible
-- Action verbs at start of every bullet point
-- No photos, no icons, no colors that might confuse ATS parsers`;
-
-  // ── Build initial generation prompt ───────────────────────
+  // ── Build prompt ──────────────────────────────────────────────
   function buildGeneratePrompt(jd, cvCtx) {
-    return `TASK: Analyze this job description and create a perfectly ATS-optimized, tailored CV.
+    return `You are a senior HR consultant and expert CV writer with 15+ years experience.
+Your task: analyze the job description deeply, extract ALL requirements, then craft a highly tailored ATS-optimized CV.
 
-JOB DESCRIPTION:
+═══ JOB DESCRIPTION ═══
 ${jd}
 
-CANDIDATE'S COMPLETE CV DATA:
+═══ CANDIDATE CV DATA ═══
 ${cvCtx}
 
-STEP 1 — ANALYSIS (write in Arabic):
-Return section starting with ---ANALYSIS---
-Include:
-🎯 المتطلبات الرئيسية: (bullet list of key JD requirements)
-✅ ما يتوفر عند المرشح: (matching skills/experience from CV data)
-⭐ نسبة التطابق: X%
-💡 نصائح للتقديم: (2-3 actionable tips)
+═══ INSTRUCTIONS ═══
+Step 1: Deep analysis — identify:
+- Required technical skills (hard skills)
+- Soft skills and behavioral requirements  
+- Years of experience needed
+- Industry-specific keywords that ATS will scan for
+- Nice-to-have qualifications
+- Seniority level
 
-STEP 2 — STRUCTURED DATA:
-Return section starting with ---DATA---
-Return ONLY valid JSON (no markdown, no extra text):
+Step 2: Match analysis — for each JD requirement, find the BEST matching experience/skill from the CV data
+
+Step 3: Generate output in EXACTLY this format:
+
+---ANALYSIS---
+🎯 المتطلبات الرئيسية:
+• [list each key requirement]
+
+✅ ما يتوفر عند المرشح:
+• [specific matching items with evidence]
+
+⚠️ الفجوات:
+• [missing skills or experience gaps]
+
+⭐ نسبة التطابق: [X]%
+
+💡 نصائح للتقديم:
+• [3 specific actionable tips]
+
+---DATA---
 {
   "tab": "electrical|network|data|pm",
   "headline": "exact job title from JD",
-  "summary": "3-4 sentence ATS-optimized professional summary with JD keywords",
+  "summary": "4-5 sentences: opens with years of experience + specialization, includes 3+ JD keywords, quantifies impact, ends with value proposition",
   "experience": [
     {
-      "title": "exact job title as in CV",
-      "company": "exact company name as in CV",
+      "title": "exact title from CV",
+      "company": "exact company from CV",
       "location": "location",
       "dates": "dates",
       "bullets": [
-        "Action verb + achievement rewritten with JD keywords + quantified result",
-        "Another bullet with JD keywords"
+        "Strong action verb + specific achievement + quantified result + JD keyword",
+        "Another achievement rewritten to mirror JD language exactly"
       ]
     }
   ],
-  "skills": ["skill1", "skill2", "skill3"]
+  "skills": ["skill matching JD exactly as written in JD"]
 }
-Rules:
-- "tab": pick the BEST matching: electrical (power/solar/QC/cables), network (NOC/Cisco/LAN/WAN), data (Python/SQL/ETL/cloud), pm (coordination/logistics/dispatch)
-- Select ONLY the 3-4 most relevant experience entries
-- "skills" must be plain strings (not objects), pick top 15 most relevant to JD
-- Every bullet must start with a strong action verb and contain at least one JD keyword
+Rules for DATA:
+- tab: electrical=power/solar/QC/cables, network=NOC/Cisco/LAN/WAN, data=Python/SQL/ETL/cloud, pm=coordination/logistics
+- Select the 3-4 MOST relevant experience entries only
+- Every bullet: action verb + achievement + number/% + JD keyword
+- Skills: exact strings, top 15 most relevant to JD, no duplicates
 
-STEP 3 — CV HTML:
-Return section starting with ---CV---
-Write a COMPLETE ATS-optimized CV in clean HTML with inline styles only.
-Requirements:
-- Single column layout (NO multi-column, NO tables for layout)
-- White background (#ffffff), font-family: Arial, sans-serif
-- Name: 22px bold, #1a1a2e
-- Section headings: 13px bold, uppercase, #1a1a2e, border-bottom: 2px solid #c0392b, padding-bottom: 4px, margin: 20px 0 10px
-- Body text: 12px, #333, line-height: 1.6
-- Bullet points: use <ul><li> with proper indentation
-- Include ALL sections: Professional Summary, Work Experience, Skills, Certifications, Education
-- Every bullet starts with strong action verb
-- Include JD keywords naturally throughout
-- Quantify results wherever data allows
-- No photos, no icons, no graphics
-- Make it complete — no placeholder text`;
+---CV---
+Write a COMPLETE, PROFESSIONAL, ATS-OPTIMIZED CV in clean HTML.
+
+HTML Requirements:
+- Inline styles ONLY (no <style> tags, no classes)
+- Single column layout — NO multi-column, NO tables for layout
+- font-family: Arial, Helvetica, sans-serif throughout
+- background: #ffffff
+- max-width: 800px, margin: 0 auto, padding: 40px
+
+Header section:
+- Name: font-size:26px; font-weight:900; color:#1a1a2e; margin:0
+- Job title (tailored to JD): font-size:14px; color:#c0392b; font-weight:700; margin:4px 0
+- Contact info: font-size:12px; color:#555; margin:4px 0
+
+Section headings:
+- font-size:11px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; color:#1a1a2e
+- border-bottom:2px solid #c0392b; padding-bottom:4px; margin:20px 0 10px
+
+Experience entries:
+- Job title: font-size:13px; font-weight:700; color:#1a1a2e
+- Company + dates: font-size:12px; color:#555
+- Bullets: <ul style="margin:6px 0 0 16px;padding:0"> <li style="font-size:12px;color:#333;line-height:1.7;margin-bottom:3px">
+
+Sections to include (in this order):
+1. Professional Summary (3-4 sentences with JD keywords)
+2. Work Experience (chronological, most recent first)
+3. Core Skills (comma-separated or chips style)
+4. Certifications & Training
+5. Education
+
+Content rules:
+- Every bullet point starts with a STRONG action verb (Led, Developed, Reduced, Managed, Implemented...)
+- Include at least 5 keywords from the JD
+- Quantify EVERY achievement (percentages, numbers, team sizes, timeframes)
+- NO placeholder text, NO [brackets], NO generic statements
+- Make it complete and ready to submit`;
   }
 
   // ── Build chat refinement prompt ────────────────────────────
@@ -179,56 +207,138 @@ Also return brief confirmation:
 [1-2 sentences in Arabic confirming what you changed]`;
   }
 
-  // ── Call Claude API ────────────────────────────────────────
-  async function callClaude(apiKey, messages, systemPrompt) {
-    const hdrs = {
-      "Content-Type": "application/json",
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true"
-    };
-    if (apiKey) hdrs["x-api-key"] = apiKey;
+  // ── Gemini 2.0 Flash API ──────────────────────────────────────
+  const GEMINI_MODELS = ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash"];
+  const GEMINI_BASE   = "https://generativelanguage.googleapis.com/v1/models";
 
-    const body = {
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 4000,
-      messages
-    };
-    if (systemPrompt) body.system = systemPrompt;
-
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST", headers: hdrs,
-      body: JSON.stringify(body)
-    });
-
-    if (!res.ok) {
-      const e = await res.json().catch(() => ({}));
-      const msg = e?.error?.message || `HTTP ${res.status}`;
-      if (msg.toLowerCase().includes("credit") || msg.toLowerCase().includes("balance")) {
-        throw new Error(`💳 رصيد منتهي — <a href="https://console.anthropic.com/settings/billing" target="_blank" style="color:#fbbf24;">أضف رصيداً</a>`);
+  function buildGeminiParts(messages, systemPrompt) {
+    const parts = [];
+    // Prepend system prompt as first user turn text
+    if (systemPrompt) parts.push({ text: "INSTRUCTIONS: " + systemPrompt + "\n\n" });
+    for (const msg of (messages || [])) {
+      if (typeof msg.content === "string") {
+        parts.push({ text: msg.content });
+      } else if (Array.isArray(msg.content)) {
+        for (const b of msg.content) {
+          if (b.type === "text")     parts.push({ text: b.text });
+          if (b.type === "image")    parts.push({ inlineData: { mimeType: b.source.media_type, data: b.source.data } });
+          if (b.type === "document") parts.push({ inlineData: { mimeType: "application/pdf", data: b.source.data } });
+        }
       }
-      throw new Error(msg);
     }
-    return (await res.json()).content?.[0]?.text || "";
+    return parts;
+  }
+
+  async function geminiFetch(apiKey, parts, modelIdx = 0) {
+    const model = GEMINI_MODELS[modelIdx] || GEMINI_MODELS[0];
+
+    const controller = new AbortController();
+    const timeoutId  = setTimeout(() => controller.abort(), 60000);
+
+    let res;
+    try {
+      res = await fetch(`${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts }],
+          generationConfig: { maxOutputTokens: 8192, temperature: 0.3 }
+        }),
+        signal: controller.signal
+      });
+    } catch(fetchErr) {
+      clearTimeout(timeoutId);
+      if (fetchErr.name === "AbortError")
+        throw new Error("⏱️ انتهى الوقت (60 ثانية) — أعد المحاولة");
+      throw new Error("🌐 فشل الاتصال: " + fetchErr.message);
+    }
+    clearTimeout(timeoutId);
+    if (!res.ok) {
+      const e   = await res.json().catch(() => ({}));
+      const msg = e?.error?.message || `HTTP ${res.status}`;
+      console.error("[Gemini] Error:", res.status, JSON.stringify(e));
+      if (res.status === 429 && modelIdx < GEMINI_MODELS.length - 1) {
+        setStatus(`⏳ Rate limit — switching to ${GEMINI_MODELS[modelIdx+1]}…`, true, "#fbbf24");
+        await new Promise(r => setTimeout(r, 3000));
+        return geminiFetch(apiKey, parts, modelIdx + 1);
+      }
+      if (res.status === 429) {
+        setStatus("⏳ Rate limit — retrying in 60s…", true, "#fbbf24");
+        await new Promise(r => setTimeout(r, 60000));
+        return geminiFetch(apiKey, parts, 0);
+      }
+      if (res.status === 400 && (msg.toLowerCase().includes("api_key") || msg.toLowerCase().includes("invalid")))
+        throw new Error("🔑 API Key غير صحيح أو غير مفعّل — تأكد من aistudio.google.com/apikey");
+      if (res.status === 403)
+        throw new Error("🚫 ممنوع الوصول — تأكد من تفعيل Gemini API في مشروعك على Google Cloud");
+      if (msg.toLowerCase().includes("expired"))
+        throw new Error("⏰ API Key منتهية الصلاحية — أنشئ key جديد من aistudio.google.com/apikey");
+      throw new Error(`${res.status}: ${msg}`);
+    }
+    const data = await res.json();
+    console.log("[Gemini] Response:", JSON.stringify(data).slice(0, 500));
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) {
+      const reason   = data.candidates?.[0]?.finishReason || "UNKNOWN";
+      const promptFB = data.promptFeedback?.blockReason || "";
+      console.warn("[Gemini] No text. reason:", reason, "blockReason:", promptFB);
+      if (reason === "SAFETY" || promptFB)
+        throw new Error("⚠️ Gemini رفض الطلب لأسباب أمنية — بسّط الوصف الوظيفي وأعد المحاولة");
+      if (reason === "MAX_TOKENS")
+        throw new Error("⚠️ الرد طويل جداً — جرّب وصفاً وظيفياً أقصر");
+      // Try to get text from all parts
+      const allText = (data.candidates?.[0]?.content?.parts || [])
+        .map(p => p.text || "").join("");
+      if (allText.trim()) return allText;
+      throw new Error(`Gemini لم يُرجع نصاً (${reason || "no candidates"}) — افتح F12 للتفاصيل`);
+    }
+    return text;
+  }
+
+  async function callClaude(apiKey, messages, systemPrompt) {
+    if (!apiKey) throw new Error("🔑 أدخل Gemini API Key من aistudio.google.com/apikey");
+    return geminiFetch(apiKey, buildGeminiParts(messages, systemPrompt));
   }
 
   // ── Parse initial response ─────────────────────────────────
   function parseGenerateResponse(text) {
+    console.log("[Parse] Response length:", text.length, "preview:", text.slice(0, 200));
+
     const aIdx = text.indexOf("---ANALYSIS---");
     const dIdx = text.indexOf("---DATA---");
     const cIdx = text.indexOf("---CV---");
 
-    const analysis = (aIdx !== -1 && dIdx !== -1) ? text.slice(aIdx + 14, dIdx).trim() : "";
+    const analysis = (aIdx !== -1 && dIdx !== -1) ? text.slice(aIdx + 14, dIdx).trim()
+                   : (aIdx !== -1 && cIdx !== -1)  ? text.slice(aIdx + 14, cIdx).trim()
+                   : "";
 
     let data = null;
     if (dIdx !== -1) {
       const raw = (cIdx !== -1) ? text.slice(dIdx + 10, cIdx) : text.slice(dIdx + 10);
       const clean = raw.trim().replace(/^```json?\n?/i, "").replace(/\n?```$/m, "").trim();
-      try { data = JSON.parse(clean); } catch(e) { console.warn("JSON parse failed:", clean.slice(0, 200)); }
+      try { data = JSON.parse(clean); } catch(e) {
+        console.warn("[Parse] JSON failed:", clean.slice(0, 300));
+        // Try to extract JSON with regex
+        const jsonMatch = clean.match(/\{[\s\S]+\}/);
+        if (jsonMatch) {
+          try { data = JSON.parse(jsonMatch[0]); } catch(_) {}
+        }
+      }
     }
 
-    let cvHtml = cIdx !== -1 ? text.slice(cIdx + 8).trim() : "";
-    cvHtml = cvHtml.replace(/^```html?\n?/i, "").replace(/\n?```$/m, "").trim();
+    let cvHtml = "";
+    if (cIdx !== -1) {
+      cvHtml = text.slice(cIdx + 8).trim()
+        .replace(/^```html?\n?/i, "").replace(/\n?```$/m, "").trim();
+    }
 
+    // Fallback: if no ---CV--- marker but response has HTML, use entire response
+    if (!cvHtml && text.includes("<html") || (!cvHtml && text.includes("<div") && text.includes("</div>"))) {
+      cvHtml = text.replace(/^```html?\n?/i, "").replace(/\n?```$/m, "").trim();
+      console.warn("[Parse] Used fallback HTML extraction");
+    }
+
+    console.log("[Parse] analysis:", !!analysis, "data:", !!data, "cvHtml:", cvHtml.length);
     return { analysis, data, cvHtml };
   }
 
@@ -412,7 +522,7 @@ Also return brief confirmation:
     if (!apiKey) {
       const ki = $("aiKeyInput");
       highlight(ki);
-      if (ki) ki.placeholder = "⚠️ أدخل API Key أولاً";
+      if (ki) ki.placeholder = "⚠️ أدخل Gemini API Key أولاً";
       setTimeout(() => { if (ki) ki.placeholder = "sk-ant-…"; }, 3000);
       return;
     }
@@ -580,7 +690,7 @@ Also return brief confirmation:
     if (out) out.innerHTML = `
       <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:380px;gap:14px;color:#bbb;">
         <div style="font-size:52px;animation:spin 2s linear infinite;">✨</div>
-        <div style="font-size:14px;font-weight:700;">Claude يكتب سيرتك الذاتية…</div>
+        <div style="font-size:14px;font-weight:700;">Gemini يكتب سيرتك الذاتية…</div>
         <div style="font-size:12px;color:#999;">ATS-Optimized · 15-30 ثانية</div>
       </div>
       <style>@keyframes spin{to{transform:rotate(360deg)}}</style>`;
