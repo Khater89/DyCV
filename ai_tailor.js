@@ -257,14 +257,15 @@ Also return brief confirmation:
       const e   = await res.json().catch(() => ({}));
       const msg = e?.error?.message || `HTTP ${res.status}`;
       console.error("[Gemini] Error:", res.status, JSON.stringify(e));
-      if (res.status === 429 && modelIdx < GEMINI_MODELS.length - 1) {
-        setStatus(`⏳ Rate limit — switching to ${GEMINI_MODELS[modelIdx+1]}…`, true, "#fbbf24");
-        await new Promise(r => setTimeout(r, 3000));
+      if ((res.status === 429 || res.status === 503) && modelIdx < GEMINI_MODELS.length - 1) {
+        const next = GEMINI_MODELS[modelIdx + 1];
+        setStatus(`⏳ ${model} مزدحم — أجرّب ${next}…`, true, "#fbbf24");
+        await new Promise(r => setTimeout(r, 2000));
         return geminiFetch(apiKey, parts, modelIdx + 1);
       }
-      if (res.status === 429) {
-        setStatus("⏳ Rate limit — retrying in 60s…", true, "#fbbf24");
-        await new Promise(r => setTimeout(r, 60000));
+      if (res.status === 429 || res.status === 503) {
+        setStatus("⏳ الخوادم مزدحمة — إعادة بعد 30 ثانية…", true, "#fbbf24");
+        await new Promise(r => setTimeout(r, 30000));
         return geminiFetch(apiKey, parts, 0);
       }
       if (res.status === 400 && (msg.toLowerCase().includes("api_key") || msg.toLowerCase().includes("invalid")))
