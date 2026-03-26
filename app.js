@@ -106,8 +106,12 @@ function uniqBy(arr, keyFn){
 }
 
 function expKey(e){
-  // Stable key for ordering & date edits (keeps original dates from source)
+  // Stable key — full title+company+dates for ordering
   return norm([e.title||"", e.company||"", e.location||"", e.dates||""].join("|"));
+}
+function expCompanyKey(e){
+  // Looser key — dedup by company alone to catch slight title variants
+  return norm((e.company||"").slice(0, 20) + "|" + (e.location||""));
 }
 
 function selectionLabel(sel){
@@ -172,8 +176,9 @@ function buildMergedModel(){
   // Clone experiences so we don't mutate the underlying DATA
   let exp = profiles.flatMap(p=> (p.experience||[]).map(e=>({ ...e })) );
 
-  // De-dupe by stable key (includes original dates)
+  // De-dupe: first by exact key, then by company (catch slight title variants)
   exp = uniqBy(exp, e=> expKey(e));
+  exp = uniqBy(exp, e=> expCompanyKey(e));
 
   // Attach internal keys
   exp.forEach(e=>{ e._key = expKey(e); });
@@ -879,6 +884,77 @@ function renderAll(){
   renderEducation();
 }
 
+// ── Smart JD-based auto merge ─────────────────────────────────────
+function autoMergeByJD(jdText) {
+  if(!jdText || jdText.trim().length < 50) return;
+
+  const jd = norm(jdText);
+
+  // Score each tab against the JD
+  const tabScores = (DATA.tabs||[]).map(t => {
+    const profile = DATA.curated?.[t.id] || {};
+    const blob = [
+      profile.summary || "",
+      (profile.experience||[]).flatMap(e => [e.title, e.company, ...(e.bullets||[]), ...(e.keywords||[])]).join(" "),
+      (profile.skills||[]).join(" "),
+      t.label, t.subtitle || ""
+    ].join(" ");
+    return { tabId: t.id, label: t.label, score: scoreText(blob) };
+  }).filter(t => t.score > 0).sort((a,b) => b.score - a.score);
+
+  if(tabScores.length < 2) return; // not enough matches to merge
+
+  // Pick top 2-3 tabs
+  const topTabs = tabScores.slice(0, 3);
+
+  // Check if these are different from current — if already merged with these, skip
+  const currentSels = mergeSelection.map(s => s.tabId).sort().join(",");
+  const newSels     = topTabs.map(t => t.tabId).sort().join(",");
+  if(mergeMode && currentSels === newSels) return;
+
+  // Build merge selection
+  mergeSelection = topTabs.map(t => ({ tabId: t.tabId, branchId: null }));
+  mergeExperienceOrder = [];
+  mergeDateOverrides   = {};
+
+  // Apply merge
+  mergeMode   = true;
+  activeTabId = "__merged__";
+  activeBranchId = null;
+
+  const model = buildMergedModel();
+  mergeExperienceOrder = (model.experience||[]).map(e => e._key);
+
+  // Snapshot
+  if(!DATA.curated) DATA.curated = {};
+  DATA.curated["__merged__"] = {
+    summary:    model.summary    || "",
+    experience: JSON.parse(JSON.stringify(model.experience || [])),
+    skills:     JSON.parse(JSON.stringify(model.skills     || [])),
+    certs:      JSON.parse(JSON.stringify(model.certs      || [])),
+    cert_images:JSON.parse(JSON.stringify(model.cert_images|| [])),
+    links:      JSON.parse(JSON.stringify(model.links      || [])),
+    projects:   JSON.parse(JSON.stringify(model.merged_projects || []))
+  };
+
+  const exitBtn = $("btnExitMerge");
+  if(exitBtn) exitBtn.style.display = "inline-flex";
+
+  renderTabs();
+  renderBranches();
+  renderAll();
+
+  // Show toast
+  const tabNames = topTabs.map(t => t.label).join(" + ");
+  window.__cvManager?.showToastFn?.(`✅ Auto-merged: ${tabNames}`)
+    || (()=>{ const t = document.createElement("div");
+        t.style.cssText = "position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;padding:10px 20px;border-radius:12px;font-size:13px;font-weight:700;z-index:9999;";
+        t.textContent = `✅ Auto-merged: ${tabNames}`;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 4000);
+      })();
+}
+
 function init(){
   if(!(DATA.tabs||[]).some(t=>t.id===activeTabId)) activeTabId = DATA.tabs?.[0]?.id || "electrical";
   renderDocStatus();
@@ -886,7 +962,13 @@ function init(){
   renderBranches();
   renderAll();
 
-  $("btnTailor").onclick = ()=>{ jdTokens = tokenize($("jd").value||""); renderAll(); };
+  $("btnTailor").onclick = ()=>{
+    const jd = $("jd").value||"";
+    jdTokens = tokenize(jd);
+    renderAll();
+    // Auto-select best matching tabs and trigger merge if JD has content
+    if(jd.trim().length > 50) autoMergeByJD(jd);
+  };
   $("btnClear").onclick = ()=>{ $("jd").value=""; jdTokens=new Set(); renderAll(); };
   $("search").addEventListener("input",(e)=>{ searchTerm = norm(e.target.value); renderAll(); });
   $("btnPrint").onclick = ()=>{ window.print(); };

@@ -151,27 +151,7 @@ const CV_DATA = {
             "team leadership"
           ]
         },
-        {
-          "title": "Vendor & Resource Allocation Coordinator (Dispatcher)",
-          "company": "Acuative",
-          "location": "Amman, Jordan",
-          "dates": "Feb 2023 – Jan 2024",
-          "bullets": [
-            "Managed vendor relationships, ensured SLA adherence, and aligned dispatch outcomes with business requirements.",
-            "Coordinated logistics and dispatch operations to optimize field routes and schedules.",
-            "Allocated resources to support maintenance interventions and collaborated with project managers on manpower planning.",
-            "Supported preventive/corrective maintenance tasks, produced maintenance logs and operating procedures, and prepared service reports."
-          ],
-          "keywords": [
-            "dispatch",
-            "resource allocation",
-            "vendor management",
-            "scheduling",
-            "maintenance support",
-            "reports",
-            "procedures"
-          ]
-        },
+        ,
         {
           "title": "NOC Support Analyst",
           "company": "Acuative",
@@ -341,27 +321,6 @@ const CV_DATA = {
     "data": {
       "summary": "Transitioning into Data Engineering with structured training in SQL, Python, ETL, data warehousing, and batch/streaming pipelines on Google Cloud.",
       "experience": [
-        {
-          "title": "Process Discipline (Supportive for Data Engineering)",
-          "company": "Operations / Coordination Background",
-          "location": "Jordan / Qatar",
-          "dates": "—",
-          "bullets": [
-            "Strong documentation and reporting habits—useful for reliable pipeline operations and ownership.",
-            "Comfortable with structured workflows, root-cause thinking, and continuous improvement."
-          ],
-          "keywords": [
-            "data",
-            "pipeline",
-            "etl",
-            "documentation",
-            "reporting",
-            "process",
-            "workflow",
-            "operations",
-            "root cause"
-          ]
-        }
       ],
       "skills": [
         "SQL",
@@ -388,62 +347,13 @@ const CV_DATA = {
         {
           "name": "Modernizing Data Lakes and Data Warehouses with Google Cloud",
           "issuer": "Google Cloud / Coursera"
-        },
-        {
-          "name": "ETL and Data Pipelines with Shell, Airflow and Kafka",
-          "issuer": "IBM / Coursera"
         }
       ]
     },
     "pm": {
       "summary": "Vendor coordination and resource allocation (dispatch) with SLA focus, routing, and structured reporting.",
       "experience": [
-        {
-          "title": "Vendor & Resource Allocation Coordinator (Dispatcher)",
-          "company": "Acuative",
-          "location": "Amman, Jordan",
-          "dates": "Feb 2023 – Present",
-          "bullets": [
-            "Managed vendor relationships, ensured SLA adherence, and aligned dispatch outcomes with business requirements.",
-            "Coordinated logistics and dispatch operations to optimize field routes and schedules.",
-            "Allocated resources to support maintenance interventions and collaborated with project managers on manpower planning.",
-            "Supported preventive/corrective maintenance tasks, produced maintenance logs and operating procedures, and prepared service reports.",
-            "Dispatch and schedule field technicians; coordinate on-call coverage and routing to meet ticket SLAs.",
-            "Manage vendor communications and availability; support resource allocation and escalation handling.",
-            "Maintain accurate status updates, documentation, and reports for internal stakeholders."
-          ],
-          "keywords": [
-            "dispatch",
-            "resource allocation",
-            "vendor management",
-            "scheduling",
-            "routing",
-            "sla",
-            "on-call",
-            "documentation",
-            "reporting",
-            "escalation"
-          ]
-        },
-        {
-          "title": "Maintenance Supervisor Engineer",
-          "company": "Al Faytri Trading & Building Maintenance Co.",
-          "location": "Doha, Qatar",
-          "dates": "2021 – Present",
-          "bullets": [
-            "Followed up maintenance work orders and ensured services executed within plan and quality expectations.",
-            "Improved workflow documentation and reporting; clarified work completion and invoicing accuracy.",
-            "Provided technical support to internal teams and stakeholders; handled post-service follow-up."
-          ],
-          "keywords": [
-            "maintenance",
-            "work orders",
-            "documentation",
-            "reporting",
-            "quality",
-            "invoicing"
-          ]
-        }
+        
       ],
       "skills": [
         "Vendor management & coordination",
