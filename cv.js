@@ -141,14 +141,17 @@ function renderAll() {
   const p = S.profile();
   renderHeader();
   renderSummary(p);
+  renderHighlights(p);
   renderExperience(p);
   renderProjects(p);
   renderLinks(p);
   renderSkills(p);
   renderCerts(p);
+  renderCertGallery(p);
   renderEducation();
   renderMergeControls();
   renderTabs();
+  renderBranches();
   if (S.editMode) setTimeout(attachEditor, 30);
 }
 
@@ -272,6 +275,98 @@ function renderEducation() {
       ${e.year||e.dates ? `<span class="edu-meta"> (${esc(e.year||e.dates||"")})</span>` : ""}
     </div>`).join("");
 }
+
+/* ── Highlights (Key Highlights from docs + JD matching) ────── */
+function renderHighlights(p) {
+  const card = $("cvHighlightsCard");
+  const wrap = $("cvHighlights");
+  if (!card || !wrap) return;
+
+  // In merge mode, skip highlights
+  if (S.merge) { card.style.display="none"; return; }
+
+  // Get auto_bullets for current tab
+  const auto   = (S.data.auto_bullets?.[S.tab] || []).map(x => ({text: typeof x==="string"?x:x.text, score:x.score||0}));
+  // Get doc highlights for current tab
+  const docHls = (S.data.docs||[]).flatMap(doc => (doc.highlights?.[S.tab]||[]).map(h => ({text:h.text, score:h.score||0})));
+
+  // Combine + dedup
+  const all = [...auto, ...docHls];
+  const seen = new Set();
+  const unique = all.filter(x => { const k=norm(x.text); if(seen.has(k)||!k) return false; seen.add(k); return true; });
+
+  // Score by JD if active
+  const scored = unique.map(x => ({...x, jd: scoreText(x.text)})).sort((a,b)=>(b.jd+b.score/10)-(a.jd+a.score/10));
+
+  // Show top 12
+  const top = scored.slice(0, 12);
+
+  if (!top.length) { card.style.display="none"; return; }
+  card.style.display="";
+  wrap.innerHTML = top.map(x => {
+    const rel = x.jd > 0 ? " relevant" : "";
+    return `<div class="highlight-item${rel}">${esc(x.text)}</div>`;
+  }).join("");
+}
+
+/* ── Cert Gallery (images) ───────────────────────────────────── */
+function renderCertGallery(p) {
+  const card = $("cvCertGalleryCard");
+  const wrap = $("cvCertGallery");
+  if (!card || !wrap) return;
+
+  const imgs = p.cert_images || [];
+  if (!imgs.length) { card.style.display="none"; return; }
+  card.style.display="";
+  wrap.innerHTML = imgs.map((img,i) => `
+    <div class="cert-img-item" data-img-idx="${i}">
+      <img src="${esc(img.src||"")}" alt="${esc(img.title||"")}" loading="lazy" onerror="this.parentElement.style.display='none'"/>
+      <div class="cert-img-title">${esc(img.title||"")}</div>
+      ${img.issuer ? `<div class="cert-img-issuer">${esc(img.issuer)}</div>` : ""}
+    </div>`).join("");
+}
+
+/* ── Branches (sub-tabs for tabs with branching) ─────────────── */
+function renderBranches() {
+  const card = $("branchesCard");
+  const wrap = $("cvBranches");
+  if (!card || !wrap) return;
+
+  if (S.merge) { card.style.display="none"; return; }
+
+  const branching = S.data.branching?.[S.tab];
+  if (!branching?.branches?.length) { card.style.display="none"; return; }
+
+  card.style.display="";
+  const title = $("branchTitle");
+  if (title) title.textContent = S.tabMeta().label || S.tab;
+
+  wrap.innerHTML = "";
+  branching.branches.forEach(b => {
+    const btn = document.createElement("button");
+    btn.className = "tab-btn" + (S.branchId===b.id ? " active" : "");
+    btn.innerHTML = `<b>${esc(b.label)}</b><small>${esc(b.subtitle||"")}</small>`;
+    btn.onclick = () => setBranch(b.id);
+    wrap.appendChild(btn);
+  });
+}
+
+function setBranch(id) {
+  S.branchId = id;
+  renderAll();
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+/* ── Override profile() to use branch if active ─────────────── */
+// Patch S.profile to check branch
+const _origProfile = S.profile.bind(S);
+S.profile = function() {
+  if (this.merge) return this.data?.curated?.["__merged__"] || null;
+  if (this.branchId && this.data?.curated_branches?.[this.tab]?.[this.branchId]) {
+    return this.data.curated_branches[this.tab][this.branchId];
+  }
+  return this.data?.curated?.[this.tab] || {};
+};
 
 function renderTabs() {
   const wrap = $("cvTabs"); if (!wrap) return;
@@ -758,8 +853,12 @@ function openEduForm(anchor, edu) {
    ACTIONS
 ═══════════════════════════════════════════════════════════════ */
 function setTab(id) {
-  S.tab   = id;
-  S.merge = false;
+  S.tab      = id;
+  S.merge    = false;
+  S.branchId = null;
+  // Auto-select default branch if tab has branching
+  const branching = S.data?.branching?.[id];
+  if (branching?.default) S.branchId = branching.default;
   renderAll();
   window.scrollTo({top:0, behavior:"smooth"});
 }
@@ -1024,6 +1123,9 @@ window.addEventListener("DOMContentLoaded", () => {
 
   // Set initial tab
   S.tab = S.data.tabs?.[0]?.id || "electrical";
+  // Set default branch if tab has branching
+  const initBranching = S.data?.branching?.[S.tab];
+  if (initBranching?.default) S.branchId = initBranching.default;
 
   // Wire buttons
   $("btnEdit")?.addEventListener("click", () => setEditMode(!S.editMode));
