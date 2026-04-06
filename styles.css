@@ -170,10 +170,10 @@ button.mini:hover { border-color: rgba(192,57,43,.3); background: var(--accent-s
 /* ─── Layout ─────────────────────────────────────────────────────────── */
 .layout {
   display: grid;
-  grid-template-columns: 340px 1fr;
+  grid-template-columns: 300px 1fr;
   gap: 16px;
-  padding: 20px 24px;
-  max-width: 1400px;
+  padding: 16px 20px;
+  max-width: 1100px;
   margin: 0 auto;
 }
 
@@ -1164,3 +1164,187 @@ input[type=month] {
   gap: 8px;
 }
 #cvEditBanner.visible { display: flex; }
+
+/* ══ CV.JS REMAKE ══════════════════════════════════════════════ */
+
+/* Layout */
+.layout { grid-template-columns: 290px 1fr; max-width: 1100px; }
+
+/* Tab wrappers */
+.tab-wrapper { position: relative; }
+.tab-actions {
+  display: none; gap: 4px; padding: 2px 8px 8px;
+}
+.tab-wrapper:hover .tab-actions { display: flex; }
+.tab-act-btn {
+  flex: 1; padding: 4px 6px; border-radius: 7px; border: 1.5px solid #eee;
+  background: #fff; font-size: 10px; font-weight: 700; cursor: pointer;
+}
+.tab-act-btn:hover { border-color: #c0392b; color: #c0392b; }
+.tab-act-extract:hover { border-color: #2563eb; color: #2563eb; }
+
+/* CV content elements */
+.cv-name    { font-size: 26px; font-weight: 900; color: #1a1a2e; margin: 0; }
+.cv-tabsub  { font-size: 13px; margin: 4px 0 0; }
+.cv-contact { font-size: 12px; margin: 4px 0 0; }
+.cv-para    { font-size: 13px; line-height: 1.7; color: #444; margin: 0; }
+
+/* Experience */
+.exp-item   { padding: 14px 0; border-bottom: 1px solid #f0f0f0; position: relative; }
+.exp-item:last-child { border-bottom: none; }
+.exp-title  { font-size: 14px; font-weight: 700; color: #1a1a2e; }
+.exp-meta   { font-size: 12px; color: #888; margin: 3px 0 6px; cursor: pointer; }
+.exp-bullets { margin: 6px 0 0 16px; padding: 0; }
+.exp-bullets li { font-size: 12px; color: #444; line-height: 1.7; margin-bottom: 3px; }
+
+/* Projects */
+.proj-item  { padding: 12px 0; border-bottom: 1px solid #f0f0f0; position: relative; }
+.proj-link a { font-size: 11px; color: #c0392b; }
+
+/* Links */
+.link-item  { padding: 6px 0; position: relative; cursor: pointer; }
+.link-item a { font-size: 13px; color: #2563eb; }
+
+/* Skills */
+.skill-chip { position: relative; }
+
+/* Certs */
+.cert-item  { padding: 6px 0; border-bottom: 1px solid #f8f8f8; position: relative; font-size: 13px; }
+.cert-name  { font-weight: 600; color: #1a1a2e; }
+.cert-meta  { color: #888; font-size: 12px; }
+.cert-link  { font-size: 11px; color: #c0392b; margin-right: 6px; }
+
+/* Education */
+.edu-item   { padding: 6px 0; border-bottom: 1px solid #f8f8f8; font-size: 13px; position: relative; cursor: pointer; }
+.edu-school { font-weight: 700; color: #1a1a2e; }
+.edu-degree { color: #555; }
+.edu-meta   { color: #888; font-size: 12px; }
+
+/* Merge */
+.merge-row  { display: flex; align-items: center; gap: 10px; padding: 10px; background: #fafafa; border: 1.5px solid #eee; border-radius: 10px; margin-bottom: 6px; }
+.merge-info { flex: 1; font-size: 12px; }
+.merge-info b { display: block; color: #1a1a2e; }
+.merge-date-input { width: 180px; padding: 6px 10px; border: 1.5px solid #eee; border-radius: 8px; font-size: 12px; outline: none; }
+.merge-date-input:focus { border-color: #c0392b; }
+.merge-btns { display: flex; gap: 4px; }
+.merge-btn  { width: 28px; height: 28px; border: 1.5px solid #eee; border-radius: 7px; background: #fff; cursor: pointer; font-size: 13px; }
+.merge-btn:hover:not(:disabled) { border-color: #c0392b; color: #c0392b; }
+.merge-btn:disabled { opacity: .3; cursor: default; }
+
+/* Merge modal checkbox */
+.merge-check-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1.5px solid #eee; border-radius: 10px; cursor: pointer; font-size: 13px; }
+.merge-check-item:hover { border-color: #c0392b; background: #fff5f5; }
+.merge-check-item input { width: 16px; height: 16px; cursor: pointer; accent-color: #c0392b; }
+.merge-check-item b { display: block; color: #1a1a2e; }
+.merge-check-item span { font-size: 11px; color: #888; }
+
+/* Edit mode — delete button */
+.cv-del {
+  position: absolute; top: 6px; left: 6px;
+  width: 20px; height: 20px; border-radius: 50%;
+  border: none; background: #fee2e2; color: #c0392b;
+  font-size: 10px; font-weight: 900; cursor: pointer;
+  display: none; align-items: center; justify-content: center;
+  z-index: 10;
+}
+.edit-mode .exp-item:hover .cv-del,
+.edit-mode .proj-item:hover .cv-del,
+.edit-mode .cert-item:hover .cv-del,
+.edit-mode .edu-item:hover .cv-del,
+.edit-mode .link-item:hover .cv-del,
+.edit-mode .skill-chip:hover .cv-del { display: flex; }
+.cv-del:hover { background: #c0392b; color: #fff; }
+
+/* Small delete on bullets/skills */
+.exp-bullets li .cv-del,
+.skill-chip .cv-del {
+  top: -5px; right: -5px; left: auto;
+}
+
+/* Edit mode — add button */
+.cv-add {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 12px; margin: 8px 0 0;
+  border: 1.5px dashed rgba(192,57,43,.4); border-radius: 8px;
+  background: #fff; color: #c0392b; font-size: 12px; font-weight: 700;
+  cursor: pointer; transition: all .15s;
+}
+.cv-add:hover { border-color: #c0392b; background: #fff5f5; }
+
+/* Edit mode — inline input */
+.cv-inline-input {
+  width: 100%; padding: 4px 8px;
+  border: 1.5px solid #c0392b; border-radius: 6px;
+  font-size: inherit; font-family: inherit; font-weight: inherit;
+  color: inherit; background: #fff9f9;
+  outline: none; resize: vertical;
+}
+
+/* Inline form */
+.cv-form {
+  background: #fff;
+  border: 1.5px solid #c0392b;
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 8px 32px rgba(192,57,43,.2);
+  z-index: 1000;
+  min-width: 280px;
+  max-width: 400px;
+}
+.cv-form .cf-title {
+  font-size: 12px; font-weight: 700; color: #888;
+  text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+.cv-form input,
+.cv-form textarea {
+  display: block; width: 100%; box-sizing: border-box;
+  padding: 8px 10px; margin-bottom: 6px;
+  border: 1.5px solid #eee; border-radius: 8px;
+  font-size: 13px; font-family: inherit; outline: none;
+}
+.cv-form input:focus,
+.cv-form textarea:focus { border-color: #c0392b; }
+.cf-btns { display: flex; gap: 8px; margin-top: 8px; }
+.cf-save {
+  flex: 1; padding: 8px; border-radius: 8px; border: none;
+  background: #c0392b; color: #fff; font-weight: 700; cursor: pointer;
+}
+.cf-cancel {
+  padding: 8px 14px; border-radius: 8px;
+  border: 1px solid #eee; background: #fff; cursor: pointer;
+}
+
+/* cv-modal (add tab) */
+.cv-modal {
+  position: fixed; inset: 0; background: rgba(0,0,0,.7);
+  backdrop-filter: blur(6px); z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+}
+.cv-modal-panel {
+  background: #fff; border-radius: 16px; padding: 24px;
+  min-width: 320px; box-shadow: 0 24px 60px rgba(0,0,0,.3);
+}
+.cv-modal-title { font-weight: 800; font-size: 16px; color: #1a1a2e; margin-bottom: 12px; }
+.cv-modal-input {
+  display: block; width: 100%; box-sizing: border-box;
+  padding: 9px 12px; margin-bottom: 8px;
+  border: 1.5px solid #eee; border-radius: 10px;
+  font-size: 13px; outline: none;
+}
+.cv-modal-input:focus { border-color: #c0392b; }
+.cv-modal-btns { display: flex; gap: 8px; margin-top: 12px; }
+
+/* Relevant highlight */
+.relevant { background: rgba(192,57,43,.04); }
+.skill-chip.relevant { background: rgba(192,57,43,.12); border-color: rgba(192,57,43,.4); }
+
+/* Print */
+@media print {
+  .sidebar, .topbar, #editBanner, #mergeControls,
+  .cv-del, .cv-add, .cv-form, .cv-inline-input,
+  .tab-actions, footer { display: none !important; }
+  .layout { display: block !important; }
+  .content { padding: 0 !important; }
+  .card { box-shadow: none !important; border: none !important; page-break-inside: avoid; }
+}

@@ -5,118 +5,97 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Abdelrahman Khater — Dynamic CV</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css"/>
 </head>
 <body>
 
 <header class="topbar">
-  <div class="brand">
+  <div class="topbar-left">
     <div class="brand-mark">K</div>
     <div>
-      <div class="title">Abdelrahman Khater</div>
-      <div class="subtitle">Dynamic CV</div>
+      <div class="topbar-name">Abdelrahman Khater</div>
+      <div class="topbar-sub" id="topbarSub">Dynamic CV</div>
     </div>
   </div>
-  <div class="right">
-    <button id="btnMerge" class="ghost" title="Merge experiences from multiple tabs">⊕ Merge</button>
-    <button id="btnExitMerge" class="ghost" style="display:none" title="Exit merge mode">✕ Exit Merge</button>
+  <div class="topbar-right">
+    <button id="btnMerge"     class="btn-ghost">⊕ Merge</button>
+    <button id="btnExitMerge" class="btn-ghost" style="display:none">✕ Exit Merge</button>
+    <button id="btnPrintTop"  class="btn-red">🖨 طباعة / PDF</button>
   </div>
 </header>
+
+<div id="editBanner" style="display:none;align-items:center;gap:10px;background:#fff5f5;border-bottom:2px solid rgba(192,57,43,.2);padding:8px 20px;font-size:12px;font-weight:700;color:#c0392b;">
+  ✏ وضع التعديل — دبل-كليك لتعديل · كليك للنموذج · ✕ حذف · ＋ إضافة
+  <button onclick="document.getElementById('btnEdit').click()" style="margin-right:auto;padding:4px 12px;border:1px solid #c0392b;border-radius:7px;background:#fff;color:#c0392b;font-size:11px;cursor:pointer;">إيقاف</button>
+</div>
 
 <main class="layout">
   <aside class="sidebar">
 
-    <!-- ① Focus Area & Tabs -->
     <section class="card">
       <h2>Focus Area</h2>
-      <div id="tabs"></div>
+      <div id="cvTabs"></div>
     </section>
 
-    <!-- ② Branches (hidden unless tab has branches) -->
-    <section class="card" id="branchesCard" style="display:none">
-      <h2 id="branchTitle">Branches</h2>
-      <div id="branches"></div>
-    </section>
-
-    <!-- ③ JD Tailoring -->
     <section class="card">
       <h2>JD Tailoring</h2>
-      <textarea id="jd" placeholder="الصق الوصف الوظيفي هنا…"></textarea>
-      <div class="row" style="margin-top:8px;flex-wrap:wrap;gap:6px;">
-        <button id="btnTailor" class="primary" title="يُعيد ترتيب المحتوى حسب الـ JD">✦ Tailor</button>
-        <button id="btnClear" title="مسح الـ JD">✕</button>
-        <button id="btnAITailor" class="btn-ai" title="يولّد CV كامل بـ AI">✨ AI Builder</button>
+      <textarea id="jdInput" placeholder="الصق الوصف الوظيفي — يعمل Merge تلقائي…" rows="5"></textarea>
+      <div style="display:flex;gap:7px;margin-top:8px;flex-wrap:wrap;">
+        <button id="btnTailor" class="btn-red" style="flex:1;">✦ Tailor + Merge</button>
+        <button id="btnClearJD" class="btn-ghost">✕</button>
+        <button id="btnAITailor" class="btn-ai">✨ AI Builder</button>
       </div>
     </section>
 
-    <!-- ④ Search -->
     <section class="card">
       <h2>Search</h2>
-      <input id="search" placeholder="IEC, Spark, NOC, Python…"/>
+      <input id="searchInput" placeholder="IEC, NOC, Python…"/>
     </section>
 
-    <!-- ⑤ Quick Add: Skills / Certs / Tab -->
-    <section class="card" id="sideManagerCard">
-      <h2>Quick Add</h2>
-      <div class="seg-tabs">
-        <button class="side-mgr-tab active" data-smgr="skills">⚡ Skills</button>
-        <button class="side-mgr-tab"        data-smgr="certs">🎓 Certs</button>
-        <button class="side-mgr-tab"        data-smgr="addtab">＋ Tab</button>
-      </div>
-
-      <!-- Skills -->
-      <div id="smgrSkills">
-        <div class="muted small" style="margin-bottom:6px;">AI classifies to the right tab automatically</div>
-        <div style="display:flex;gap:6px;">
-          <input id="smgrSkillInput" placeholder="e.g. Fortinet NSE4…" style="flex:1;min-width:0;"/>
-          <button id="smgrSkillSave" class="btn-add">＋</button>
-        </div>
-        <div id="smgrSkillStatus" class="status-hint"></div>
-      </div>
-
-      <!-- Certs -->
-      <div id="smgrCerts" style="display:none;">
-        <input id="smgrCertName"   placeholder="Certificate name *" style="width:100%;margin-bottom:5px;box-sizing:border-box;"/>
-        <div style="display:flex;gap:5px;margin-bottom:5px;">
-          <input id="smgrCertIssuer" placeholder="Issuer" style="flex:1;min-width:0;"/>
-          <input id="smgrCertDate" type="month" style="width:110px;"/>
-        </div>
-        <div id="smgrCertDropZone" class="drop-zone">
-          📎 Click or drag certificate file
-          <input type="file" id="smgrCertFile" accept=".pdf,.jpg,.jpeg,.png" style="display:none;"/>
-        </div>
-        <div id="smgrCertFileName" class="status-hint" style="color:#c0392b;"></div>
-        <button id="smgrCertSave" class="btn-primary-full" style="margin-top:6px;">＋ Add Certificate</button>
-        <div id="smgrCertStatus" class="status-hint"></div>
-      </div>
-
-      <!-- Add Tab -->
-      <div id="smgrAddTab" style="display:none;">
-        <input id="smgrTabLabel" placeholder="Tab name *" style="width:100%;margin-bottom:5px;box-sizing:border-box;"/>
-        <input id="smgrTabSub"   placeholder="Subtitle (optional)" style="width:100%;margin-bottom:5px;box-sizing:border-box;"/>
-        <button id="smgrTabSave" class="btn-primary-full" style="background:#1a1a2e;">＋ Add Tab</button>
-        <div id="smgrTabStatus" class="status-hint"></div>
-      </div>
-    </section>
-
-    <!-- ⑥ Tools row -->
     <section class="card">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button id="cvEditToggle" class="tool-btn" title="Double-click to edit any field · ✕ to delete · ＋ to add">
-          ✏️ Edit Mode
-        </button>
-        <button id="btnPrint" class="tool-btn tool-btn-accent" title="Export to PDF">
-          ⬇ Export
-        </button>
+      <h2>Quick Add</h2>
+      <div class="mgr-tabs">
+        <button class="mgr-tab-btn active" data-panel="mgrSkills">⚡ Skills</button>
+        <button class="mgr-tab-btn" data-panel="mgrCerts">🎓 Certs</button>
+        <button class="mgr-tab-btn" data-panel="mgrAddTab">＋ Tab</button>
+      </div>
+
+      <div id="mgrSkills" class="mgr-panel">
+        <div class="muted small" style="margin-bottom:6px;">Gemini classifies to the right tab</div>
+        <div style="display:flex;gap:6px;">
+          <input id="quickSkillInput" placeholder="e.g. Fortinet NSE4…" style="flex:1;min-width:0;"/>
+          <button id="quickSkillBtn" class="btn-add">＋</button>
+        </div>
+      </div>
+
+      <div id="mgrCerts" class="mgr-panel" style="display:none;">
+        <input id="mgrCertName"   class="full-input" placeholder="اسم الشهادة *"/>
+        <div style="display:flex;gap:5px;margin-top:4px;">
+          <input id="mgrCertIssuer" class="full-input" placeholder="الجهة" style="flex:1;"/>
+          <input id="mgrCertDate" type="month" class="full-input" style="width:120px;"/>
+        </div>
+        <button id="mgrCertSave" class="btn-primary-full" style="margin-top:6px;">＋ Add Certificate</button>
+        <div id="mgrCertStatus" class="status-hint"></div>
+      </div>
+
+      <div id="mgrAddTab" class="mgr-panel" style="display:none;">
+        <input id="mgrTabLabel" class="full-input" placeholder="Tab name *"/>
+        <input id="mgrTabSub"   class="full-input" placeholder="Subtitle" style="margin-top:4px;"/>
+        <button id="mgrTabSaveBtn" class="btn-primary-full" style="margin-top:6px;background:#1a1a2e;">＋ Add Tab</button>
       </div>
     </section>
 
-    <!-- ⑦ Google Drive sync -->
-    <section class="card" id="driveDbCard">
+    <section class="card">
+      <div style="display:flex;gap:8px;">
+        <button id="btnEdit"  class="tool-btn" style="flex:2;">✏ Edit Mode</button>
+        <button id="btnPrint" class="tool-btn tool-red" style="flex:1;">🖨 PDF</button>
+      </div>
+    </section>
+
+    <section class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-        <span style="font-weight:700;font-size:12px;color:#1a1a2e;">☁ Google Drive</span>
+        <span style="font-weight:700;font-size:12px;">☁ Google Drive</span>
         <span id="driveDbStatus"></span>
       </div>
       <button id="driveSignInBtn" class="btn-google">
@@ -124,264 +103,189 @@
         Sign in with Google
       </button>
       <div id="driveDbInfo" style="display:none;">
-        <div class="muted small" style="margin-bottom:6px;">Auto-saves to cv_data.json in Drive</div>
+        <div class="muted small" style="margin-bottom:6px;">Auto-saves to cv_data.json</div>
         <div style="display:flex;gap:6px;">
-          <button id="driveSaveNowBtn" class="btn-save-drive">⬆ Save Now</button>
-          <button id="driveSignOutBtn" class="btn-ghost-sm">Sign out</button>
+          <button id="driveSaveNowBtn" class="btn-save-drive">⬆ حفظ الآن</button>
+          <button id="driveSignOutBtn" class="btn-ghost-sm">خروج</button>
         </div>
       </div>
-
-    </section>
-
-    <!-- Advanced -->
-    <section class="card muted">
-      <details>
-        <summary style="cursor:pointer;font-weight:600;font-size:11px;">⚙ Advanced</summary>
-        <div id="docStatus" class="muted" style="margin-top:8px;font-size:11px;"></div>
-      </details>
     </section>
 
   </aside>
 
-  <section class="content"on class="content" id="cvRoot">
-    <!-- Hero -->
+  <section class="content" id="cvRoot">
+
     <div class="card hero">
-      <div>
-        <div id="name" class="name"></div>
-        <div id="tabSubtitle" class="muted"></div>
-        <div id="contact" class="muted"></div>
-        <div id="headline" class="muted hidden"></div>
-        <div id="tabTitle" class="muted hidden"></div>
-      </div>
-      <div class="pill" id="pill"></div>
+      <div id="cvName"    class="cv-name"></div>
+      <div id="cvTabSub"  class="cv-tabsub muted"></div>
+      <div id="cvContact" class="cv-contact muted"></div>
     </div>
 
-    <!-- Summary -->
-    <section class="card">
+    <section class="card" id="cvSummaryCard">
       <h2>Professional Summary</h2>
-      <p id="summary" class="para"></p>
+      <p id="cvSummary" class="cv-para"></p>
     </section>
 
-    <!-- Highlights -->
-    <section class="card">
-      <h2>Key Highlights</h2>
-      <div id="highlights"></div>
-      <div class="muted small" style="margin-top:10px">Selected highlights from all documents, matched to the current focus area.</div>
-    </section>
-
-    <!-- Merge controls -->
-    <section class="card" id="mergeEditCard" style="display:none">
+    <section class="card" id="mergeControls" style="display:none;">
       <h2>Merged CV Controls</h2>
-      <div class="muted small">Reorder experiences and adjust date ranges for the merged CV.</div>
-      <div class="row" style="margin-top:12px">
-        <button id="btnMergeAutoSort">↕ Auto sort by date</button>
-        <button id="btnMergeResetDates">↺ Reset date edits</button>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <button id="btnMergeAutoSort" class="btn-ghost">↕ Auto sort by date</button>
       </div>
-      <div id="mergeEditList" class="mergeEditList" style="margin-top:14px"></div>
+      <div id="mergeOrderList"></div>
     </section>
 
-    <!-- Experience -->
-    <section class="card">
+    <section class="card" id="cvExperienceCard">
       <h2>Relevant Experience</h2>
-      <div id="experience"></div>
+      <div id="cvExperience"></div>
     </section>
 
-    <!-- Projects -->
-    <section class="card" id="projectsCard">
+    <section class="card" id="cvProjectsCard" style="display:none;">
       <h2>Projects</h2>
-      <div id="projects"></div>
+      <div id="cvProjects"></div>
     </section>
 
-    <!-- Links -->
-    <section class="card" id="linksCard">
+    <section class="card" id="cvLinksCard" style="display:none;">
       <h2>Links</h2>
-      <div id="links"></div>
+      <div id="cvLinks"></div>
     </section>
 
-    <!-- Skills -->
-    <section class="card">
+    <section class="card" id="cvSkillsCard">
       <h2>Core Skills</h2>
-      <div id="skills" class="chips"></div>
+      <div id="cvSkills" class="chips"></div>
     </section>
 
-    <!-- Certifications -->
-    <section class="card" id="certsCard">
+    <section class="card" id="cvCertsCard" style="display:none;">
       <h2>Certifications &amp; Training</h2>
-      <div id="certs"></div>
+      <div id="cvCerts"></div>
     </section>
 
-    <!-- Certificate gallery -->
-    <section class="card" id="certGalleryCard">
-      <h2>Certificate Images</h2>
-      <div id="certGallery" class="gallery"></div>
-    </section>
-
-    <!-- Education -->
-    <section class="card">
+    <section class="card" id="cvEducationCard">
       <h2>Education</h2>
-      <div id="education"></div>
+      <div id="cvEducation"></div>
     </section>
 
-    <footer class="footer muted">Offline-friendly · Open in browser · Print to PDF</footer>
+    <footer class="footer muted">Dynamic CV · Offline-ready · Print to PDF</footer>
   </section>
 </main>
 
+<!-- Merge Modal -->
+<div id="mergeModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:10000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:20px;padding:28px;max-width:480px;width:90%;box-shadow:0 32px 80px rgba(0,0,0,.3);">
+    <h2 style="margin:0 0 6px;color:#1a1a2e;">⊕ Merge CV</h2>
+    <p class="muted" style="margin:0 0 16px;">اختر التابات للدمج. الخبرات تُرتَّب بالتاريخ تلقائياً.</p>
+    <div id="mergeTabList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button id="btnMergeApply" class="btn-red" style="flex:1;padding:11px;">Build Merged CV</button>
+      <button id="btnMergeCancel" class="btn-ghost" style="padding:11px 18px;">إلغاء</button>
+    </div>
+  </div>
+</div>
 
-<!-- ══ AI CV Builder Modal ════════════════════════════════════════ -->
-<div id="aiCVModal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.88);backdrop-filter:blur(8px);">
-  <div style="max-width:1100px;height:96vh;margin:2vh auto;background:#0d0d14;border-radius:24px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 40px 120px rgba(0,0,0,0.8);border:1px solid rgba(255,255,255,0.08);">
-
-    <!-- ── Modal Header ── -->
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0;background:linear-gradient(135deg,rgba(99,102,241,0.18),rgba(168,85,247,0.08));">
+<!-- AI Builder Modal -->
+<div id="aiCVModal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,.88);backdrop-filter:blur(8px);">
+  <div style="max-width:1100px;height:96vh;margin:2vh auto;background:#0d0d14;border-radius:24px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 40px 120px rgba(0,0,0,.8);border:1px solid rgba(255,255,255,.08);">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0;">
       <div style="display:flex;align-items:center;gap:10px;">
         <div style="width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#a855f7);display:flex;align-items:center;justify-content:center;font-size:17px;">✨</div>
         <div>
           <div style="font-weight:800;font-size:15px;color:#fff;">AI CV Builder — ATS Optimized</div>
-          <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:1px;">Powered by Gemini 2.0 Flash · مجاني · يملأ حقول الـ CV تلقائياً</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.4);">Powered by Gemini 2.0 Flash</div>
         </div>
       </div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <button id="aiCVApply" style="display:none;padding:8px 14px;border-radius:10px;border:1px solid rgba(74,222,128,0.5);background:rgba(74,222,128,0.12);color:#4ade80;font-size:12px;font-weight:700;cursor:pointer;">
-          ✅ تطبيق على الـ CV
-        </button>
-        <button id="aiCVPrint" style="display:none;padding:8px 14px;border-radius:10px;border:1px solid rgba(99,102,241,0.5);background:rgba(99,102,241,0.15);color:#a5b4fc;font-size:12px;font-weight:700;cursor:pointer;">
-          ⬇ Export PDF
-        </button>
-        <button id="aiCVClose" style="width:34px;height:34px;border-radius:10px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+      <div style="display:flex;gap:8px;">
+        <button id="aiCVApply" style="display:none;padding:8px 14px;border-radius:10px;border:1px solid rgba(74,222,128,.5);background:rgba(74,222,128,.12);color:#4ade80;font-size:12px;font-weight:700;cursor:pointer;">✅ تطبيق</button>
+        <button id="aiCVPrint" style="display:none;padding:8px 14px;border-radius:10px;border:1px solid rgba(99,102,241,.5);background:rgba(99,102,241,.15);color:#a5b4fc;font-size:12px;font-weight:700;cursor:pointer;">⬇ PDF</button>
+        <button id="aiCVClose" style="width:34px;height:34px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#fff;font-size:16px;cursor:pointer;">✕</button>
       </div>
     </div>
-
-    <!-- ── Body: Left panel + Right CV+Chat ── -->
     <div style="display:grid;grid-template-columns:280px 1fr;flex:1;overflow:hidden;min-height:0;">
-
-      <!-- ▌Left: Inputs + Analysis ▌ -->
-      <div style="border-right:1px solid rgba(255,255,255,0.07);display:flex;flex-direction:column;overflow:hidden;">
-
-        <!-- API Key -->
-        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.06);">
-          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.35);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;">🔑 API Key</div>
+      <div style="border-right:1px solid rgba(255,255,255,.07);display:flex;flex-direction:column;overflow:hidden;">
+        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.06);">
+          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.35);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;">🔑 Gemini API Key</div>
           <div style="position:relative;">
-            <input id="aiKeyInput" type="password" placeholder="AIza…"
-              style="width:100%;padding:8px 32px 8px 10px;background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.1);border-radius:9px;color:#fff;font-size:11px;outline:none;font-family:monospace;box-sizing:border-box;"/>
-            <button id="aiKeyToggle" style="position:absolute;right:7px;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(255,255,255,0.35);cursor:pointer;font-size:13px;padding:0;">👁</button>
+            <input id="aiKeyInput" type="password" placeholder="AIza…" style="width:100%;padding:8px 32px 8px 10px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.1);border-radius:9px;color:#fff;font-size:11px;outline:none;font-family:monospace;box-sizing:border-box;"/>
+            <button id="aiKeyToggle" style="position:absolute;right:7px;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(255,255,255,.35);cursor:pointer;font-size:13px;padding:0;">👁</button>
           </div>
-          <div style="font-size:10px;color:rgba(255,255,255,0.2);margin-top:3px;">
-            <a href="https://aistudio.google.com/apikey" target="_blank" style="color:#7c7cfc;">aistudio.google.com</a> — يُحفظ تلقائياً
-          </div>
+          <div style="font-size:10px;color:rgba(255,255,255,.2);margin-top:3px;"><a href="https://aistudio.google.com/apikey" target="_blank" style="color:#7c7cfc;">aistudio.google.com</a> — مجاني</div>
         </div>
-
-        <!-- JD Input -->
-        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.06);">
-          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.35);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;">الوصف الوظيفي</div>
-          <textarea id="aiJdInput" placeholder="الصق الوصف الوظيفي هنا… (Ctrl+Enter للتوليد)"
-            style="width:100%;height:130px;background:rgba(255,255,255,0.04);border:1.5px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px;color:#fff;font-size:11px;line-height:1.6;resize:none;outline:none;font-family:inherit;box-sizing:border-box;"></textarea>
-          <button id="aiGenerateBtn"
-            style="width:100%;margin-top:8px;padding:11px;border-radius:11px;border:none;
-              background:linear-gradient(135deg,#6366f1,#a855f7);color:#fff;
-              font-size:13px;font-weight:800;cursor:pointer;transition:all .2s;
-              box-shadow:0 4px 16px rgba(99,102,241,0.4);">
-            ✨ توليد السيرة الذاتية
-          </button>
+        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.06);">
+          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.35);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;">الوصف الوظيفي</div>
+          <textarea id="aiJdInput" placeholder="الصق الوصف الوظيفي…" style="width:100%;height:130px;background:rgba(255,255,255,.04);border:1.5px solid rgba(255,255,255,.1);border-radius:10px;padding:10px;color:#fff;font-size:11px;resize:none;outline:none;font-family:inherit;box-sizing:border-box;"></textarea>
+          <button id="aiGenerateBtn" style="width:100%;margin-top:8px;padding:11px;border-radius:11px;border:none;background:linear-gradient(135deg,#6366f1,#a855f7);color:#fff;font-size:13px;font-weight:800;cursor:pointer;">✨ توليد السيرة الذاتية</button>
         </div>
-
-        <!-- Analysis -->
         <div style="flex:1;overflow-y:auto;padding:12px 14px;">
-          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.35);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">تحليل الوصف الوظيفي</div>
-          <div id="aiAnalysisPanel" style="font-size:11px;line-height:1.8;">
-            <div style="color:rgba(255,255,255,0.2);text-align:center;padding:24px 0;">الصق وصفاً وانقر توليد</div>
-          </div>
+          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.35);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">تحليل الوصف</div>
+          <div id="aiAnalysisPanel" style="font-size:11px;line-height:1.8;color:rgba(255,255,255,.6);"><div style="color:rgba(255,255,255,.2);text-align:center;padding:24px 0;">الصق وصفاً وانقر توليد</div></div>
         </div>
       </div>
-
-      <!-- ▌Right: CV Output + Chat ▌ -->
       <div style="display:flex;flex-direction:column;overflow:hidden;min-height:0;">
-
-        <!-- CV Output (scrollable) -->
-        <div style="flex:1;overflow-y:auto;background:#fff;min-height:0;" id="aiCVOutputWrap">
+        <div style="flex:1;overflow-y:auto;background:#fff;min-height:0;">
           <div id="aiCVOutput" style="padding:36px 44px;min-height:100%;font-family:Arial,sans-serif;">
-            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:380px;gap:14px;color:#ccc;">
-              <div style="font-size:56px;opacity:0.25;">✨</div>
-              <div style="font-size:14px;font-weight:600;color:#aaa;">سيظهر الـ CV المُولَّد هنا</div>
-              <div style="font-size:12px;color:#bbb;">الصق الوصف الوظيفي واضغط توليد</div>
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:380px;gap:14px;">
+              <div style="font-size:56px;opacity:.15;">✨</div>
+              <div style="font-size:14px;font-weight:600;color:#bbb;">سيظهر الـ CV المُولَّد هنا</div>
             </div>
           </div>
         </div>
-
-        <!-- ── Chat Refinement Bar ── -->
-        <div style="border-top:1px solid rgba(255,255,255,0.08);background:#0d0d14;padding:12px 16px;flex-shrink:0;">
-          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.35);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">💬 تعديل وتحسين الـ CV</div>
+        <div style="border-top:1px solid rgba(255,255,255,.08);background:#0d0d14;padding:12px 16px;flex-shrink:0;">
           <div style="display:flex;gap:8px;align-items:flex-end;">
-            <textarea id="aiChatInput" placeholder="اكتب طلبك… مثال: أضف المزيد من مهارات الشبكات · اجعل الملخص أقصر · ركز على خبرة PV · غيّر الأسلوب ليكون أكثر احترافية"
-              style="flex:1;padding:10px 12px;background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.1);border-radius:11px;color:#fff;font-size:12px;line-height:1.5;resize:none;outline:none;font-family:inherit;height:52px;max-height:120px;box-sizing:border-box;"
-              rows="2"></textarea>
-            <button id="aiChatSend"
-              style="padding:10px 16px;border-radius:11px;border:none;background:rgba(99,102,241,0.8);color:#fff;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .2s;">
-              إرسال ↵
-            </button>
+            <textarea id="aiChatInput" placeholder="عدّل الـ CV… مثال: اجعل الملخص أقصر · ركز على NOC" style="flex:1;padding:10px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.1);border-radius:11px;color:#fff;font-size:12px;resize:none;outline:none;height:52px;box-sizing:border-box;" rows="2"></textarea>
+            <button id="aiChatSend" style="padding:10px 16px;border-radius:11px;border:none;background:rgba(99,102,241,.8);color:#fff;font-size:13px;font-weight:700;cursor:pointer;">إرسال ↵</button>
           </div>
-          <!-- Chat history (compact) -->
           <div id="aiChatHistory" style="margin-top:8px;max-height:80px;overflow-y:auto;display:none;"></div>
         </div>
-
       </div>
     </div>
-
-    <!-- ── Status Bar ── -->
-    <div id="aiStatusBar" style="padding:8px 20px;border-top:1px solid rgba(255,255,255,0.06);background:rgba(0,0,0,0.4);font-size:11px;color:rgba(255,255,255,0.35);display:flex;align-items:center;gap:8px;flex-shrink:0;">
-      <span id="aiStatusDot" style="width:7px;height:7px;border-radius:50%;background:#3f3f50;flex-shrink:0;"></span>
+    <div id="aiStatusBar" style="padding:8px 20px;border-top:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.4);font-size:11px;color:rgba(255,255,255,.35);display:flex;align-items:center;gap:8px;flex-shrink:0;">
+      <span id="aiStatusDot" style="width:7px;height:7px;border-radius:50%;background:#3f3f50;flex-shrink:0;display:inline-block;"></span>
       <span id="aiStatusText">جاهز</span>
     </div>
-
   </div>
 </div>
-<!-- ════════════════════════════════════════════════════════════════ -->
 
-<!-- Google Identity Services -->
 <script src="https://accounts.google.com/gsi/client" async></script>
 <script src="google_config.js"></script>
-
-<script src="data.js" defer></script>
-<script src="drive_config.js" defer></script>
-<script src="app.js" defer></script>
-<script src="drive_manager.js" defer></script>
-<script src="drive_db.js" defer></script>
-<script src="cv_manager.js" defer></script>
-<script src="cv_editor.js" defer></script>
+<script src="data.js"></script>
+<script src="drive_config.js"></script>
+<script src="cv.js"        defer></script>
+<script src="drive_db.js"  defer></script>
 <script src="ai_tailor.js" defer></script>
-
-<!-- Branch Picker Modal -->
-<div id="branchModal" class="modal hidden" aria-hidden="true">
-  <div class="modalBackdrop" id="branchModalBackdrop"></div>
-  <div class="modalPanel" role="dialog" aria-modal="true" aria-labelledby="branchModalTitle">
-    <div class="modalHead">
-      <div class="modalTitle" id="branchModalTitle">Choose Focus</div>
-      <button class="iconBtn" id="branchModalClose" aria-label="Close">×</button>
-    </div>
-    <div class="modalBody">
-      <p class="muted" id="branchModalHint" style="margin-bottom:12px">Pick a specialisation to generate a focused CV for this tab.</p>
-      <div id="branchModalList" class="modalGrid"></div>
-    </div>
-  </div>
-</div>
-
-<!-- Merge Builder Modal -->
-<div id="mergeModal" class="modal hidden" aria-hidden="true">
-  <div class="modalBackdrop" id="mergeModalBackdrop"></div>
-  <div class="modalPanel" role="dialog" aria-modal="true" aria-labelledby="mergeModalTitle">
-    <div class="modalHead">
-      <div class="modalTitle" id="mergeModalTitle">Merge CV</div>
-      <button class="iconBtn" id="mergeModalClose" aria-label="Close">×</button>
-    </div>
-    <div class="modalBody">
-      <p class="muted" style="margin-bottom:12px">Select multiple areas to merge into one CV. Experiences will be sorted by date (most recent first).</p>
-      <div id="mergeModalList" class="mergeList"></div>
-      <div class="row" style="margin-top:14px">
-        <button id="btnMergeApply" class="primary">Build Merged CV</button>
-        <button id="btnMergeCancel">Cancel</button>
-      </div>
-    </div>
-  </div>
-</div>
-
+<script defer>
+document.addEventListener("DOMContentLoaded", () => {
+  const $ = id => document.getElementById(id);
+  $("btnAITailor")?.addEventListener("click", () => { $("aiCVModal").style.display="block"; });
+  $("btnPrintTop")?.addEventListener("click", () => { window.print(); });
+  $("mgrTabSaveBtn")?.addEventListener("click", () => {
+    const label=($("mgrTabLabel")?.value||"").trim(); if(!label) return;
+    const id=label.toLowerCase().replace(/\s+/g,"_").replace(/[^a-z0-9_]/g,"").slice(0,20);
+    const app=window.__cvApp; if(!app) return;
+    const data=app.getData();
+    if((data.tabs||[]).some(t=>t.id===id)){alert("ID موجود مسبقاً");return;}
+    if(!data.tabs) data.tabs=[];
+    if(!data.curated) data.curated={};
+    data.tabs.push({id,label,subtitle:($("mgrTabSub")?.value||"").trim()});
+    data.curated[id]={summary:"",experience:[],skills:[],certs:[],links:[]};
+    app.save(); app.renderTabs(); app.renderAll();
+    $("mgrTabLabel").value=""; $("mgrTabSub").value="";
+  });
+  $("mgrCertSave")?.addEventListener("click", () => {
+    const name=($("mgrCertName")?.value||"").trim(); if(!name) return;
+    const app=window.__cvApp; if(!app) return;
+    const data=app.getData();
+    const tabId=app.getActiveTab();
+    if(!data.curated?.[tabId]) return;
+    if(!data.curated[tabId].certs) data.curated[tabId].certs=[];
+    data.curated[tabId].certs.push({
+      title:name, name,
+      issuer:($("mgrCertIssuer")?.value||"").trim(),
+      date:($("mgrCertDate")?.value||"").trim()
+    });
+    app.save(); app.renderAll();
+    $("mgrCertName").value=""; $("mgrCertIssuer").value=""; $("mgrCertDate").value="";
+    $("mgrCertStatus").textContent="✅ تمت الإضافة";
+    setTimeout(()=>{ if($("mgrCertStatus")) $("mgrCertStatus").textContent=""; },3000);
+  });
+});
+</script>
 </body>
 </html>

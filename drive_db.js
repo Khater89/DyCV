@@ -253,10 +253,21 @@
   // ══════════════════════════════════════════════════════════════
   function signIn() {
     const clientId = window.GOOGLE_CLIENT_ID || "";
+
+    // Show helpful message if Client ID not configured
     if (!clientId || clientId.includes("YOUR_GOOGLE")) {
-      showSetupGuide();
+      const msg = document.getElementById("driveNoConfigMsg");
+      if (msg) msg.style.display = "block";
+      toast("⚠️ لازم تضيف Google Client ID في google_config.js أولاً — راجع GUIDE.md", 6000);
       return;
     }
+
+    // Must be served from http/https for OAuth to work
+    if (location.protocol === "file:") {
+      toast("⚠️ OAuth لا يعمل من ملف محلي — ارفع على GitHub Pages أو شغّل: python3 -m http.server 8080", 7000);
+      return;
+    }
+
     if (!window.google?.accounts?.oauth2) {
       toast("⚠️ جاري تحميل Google — انتظر ثانية وأعد المحاولة", 4000);
       return;
