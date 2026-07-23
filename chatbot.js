@@ -174,13 +174,15 @@ async function sendMessage(text) {
   try {
     // Build payload for n8n
     const payload = {
-      mode,                    // "cv" | "interview"
+      mode,
       message:  text,
       cv:       buildContext(),
       history:  history.slice(-8),
-      // interview state
       interview_q:     interviewQ,
       interview_index: qIndex,
+      // API keys — n8n can use these to call AI models
+      openai_key: localStorage.getItem("openai_key") || "",
+      cv_ak:      localStorage.getItem("cv_ak") || "",
     };
 
     const result = await callN8N(payload);

@@ -19,8 +19,8 @@
   let isGenerating  = false;
 
   // ── API key ────────────────────────────────────────────────
-  function loadKey() { try { return localStorage.getItem("gemini_key") || ""; } catch(_) { return ""; } }
-  function saveKey(k){ try { localStorage.setItem("gemini_key", k); } catch(_) {} }
+  function loadKey() { try { return localStorage.getItem("openai_key") || ""; } catch(_) { return ""; } }
+  function saveKey(k){ try { localStorage.setItem("openai_key", k); } catch(_) {} }
 
   // ── Get all Drive folder names (for context) ───────────────
   function getDriveFoldersContext() {
@@ -207,98 +207,78 @@ Also return brief confirmation:
 [1-2 sentences in Arabic confirming what you changed]`;
   }
 
-  // ── Gemini 2.0 Flash API ──────────────────────────────────────
-  const GEMINI_MODELS = ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash"];
-  const GEMINI_BASE   = "https://generativelanguage.googleapis.com/v1/models";
+  // ── OpenAI API ────────────────────────────────────────────────
+  const OPENAI_MODEL = "gpt-4o";
+  const OPENAI_URL   = "https://api.openai.com/v1/chat/completions";
 
-  function buildGeminiParts(messages, systemPrompt) {
-    const parts = [];
-    // Prepend system prompt as first user turn text
-    if (systemPrompt) parts.push({ text: "INSTRUCTIONS: " + systemPrompt + "\n\n" });
+  async function callClaude(apiKey, messages, systemPrompt) {
+    if (!apiKey) throw new Error("🔑 أدخل OpenAI API Key من platform.openai.com/api-keys");
+
+    // Build OpenAI messages array
+    const oaiMessages = [];
+    if (systemPrompt) oaiMessages.push({ role: "system", content: systemPrompt });
+
     for (const msg of (messages || [])) {
       if (typeof msg.content === "string") {
-        parts.push({ text: msg.content });
+        oaiMessages.push({ role: msg.role || "user", content: msg.content });
       } else if (Array.isArray(msg.content)) {
+        // Multimodal: build content array for GPT-4o
+        const parts = [];
         for (const b of msg.content) {
-          if (b.type === "text")     parts.push({ text: b.text });
-          if (b.type === "image")    parts.push({ inlineData: { mimeType: b.source.media_type, data: b.source.data } });
-          if (b.type === "document") parts.push({ inlineData: { mimeType: "application/pdf", data: b.source.data } });
+          if (b.type === "text")
+            parts.push({ type: "text", text: b.text });
+          if (b.type === "image")
+            parts.push({ type: "image_url", image_url: { url: `data:${b.source.media_type};base64,${b.source.data}` }});
+          if (b.type === "document")
+            parts.push({ type: "text", text: "[PDF attached — please analyze its content]" });
         }
+        oaiMessages.push({ role: msg.role || "user", content: parts });
       }
     }
-    return parts;
-  }
-
-  async function geminiFetch(apiKey, parts, modelIdx = 0) {
-    const model = GEMINI_MODELS[modelIdx] || GEMINI_MODELS[0];
 
     const controller = new AbortController();
-    const timeoutId  = setTimeout(() => controller.abort(), 60000);
+    const timeoutId  = setTimeout(() => controller.abort(), 90000);
 
     let res;
     try {
-      res = await fetch(`${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`, {
+      res = await fetch(OPENAI_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`,
+        },
         body: JSON.stringify({
-          contents: [{ role: "user", parts }],
-          generationConfig: { maxOutputTokens: 8192, temperature: 0.3 }
+          model: OPENAI_MODEL,
+          messages: oaiMessages,
+          max_tokens: 4000,
+          temperature: 0.3,
         }),
-        signal: controller.signal
+        signal: controller.signal,
       });
     } catch(fetchErr) {
       clearTimeout(timeoutId);
       if (fetchErr.name === "AbortError")
-        throw new Error("⏱️ انتهى الوقت (60 ثانية) — أعد المحاولة");
+        throw new Error("⏱️ انتهى الوقت (90 ثانية) — أعد المحاولة");
       throw new Error("🌐 فشل الاتصال: " + fetchErr.message);
     }
     clearTimeout(timeoutId);
+
     if (!res.ok) {
       const e   = await res.json().catch(() => ({}));
       const msg = e?.error?.message || `HTTP ${res.status}`;
-      console.error("[Gemini] Error:", res.status, JSON.stringify(e));
-      if ((res.status === 429 || res.status === 503) && modelIdx < GEMINI_MODELS.length - 1) {
-        const next = GEMINI_MODELS[modelIdx + 1];
-        setStatus(`⏳ ${model} مزدحم — أجرّب ${next}…`, true, "#fbbf24");
-        await new Promise(r => setTimeout(r, 2000));
-        return geminiFetch(apiKey, parts, modelIdx + 1);
-      }
-      if (res.status === 429 || res.status === 503) {
-        setStatus("⏳ الخوادم مزدحمة — إعادة بعد 30 ثانية…", true, "#fbbf24");
-        await new Promise(r => setTimeout(r, 30000));
-        return geminiFetch(apiKey, parts, 0);
-      }
-      if (res.status === 400 && (msg.toLowerCase().includes("api_key") || msg.toLowerCase().includes("invalid")))
-        throw new Error("🔑 API Key غير صحيح أو غير مفعّل — تأكد من aistudio.google.com/apikey");
-      if (res.status === 403)
-        throw new Error("🚫 ممنوع الوصول — تأكد من تفعيل Gemini API في مشروعك على Google Cloud");
-      if (msg.toLowerCase().includes("expired"))
-        throw new Error("⏰ API Key منتهية الصلاحية — أنشئ key جديد من aistudio.google.com/apikey");
+      if (res.status === 401)
+        throw new Error("🔑 API Key غير صحيح — تأكد من platform.openai.com/api-keys");
+      if (res.status === 429)
+        throw new Error("⏳ Rate limit — انتظر دقيقة وأعد المحاولة");
+      if (res.status === 402 || msg.toLowerCase().includes("quota"))
+        throw new Error("💳 رصيد OpenAI منتهي — أضف رصيداً من platform.openai.com/billing");
       throw new Error(`${res.status}: ${msg}`);
     }
-    const data = await res.json();
-    console.log("[Gemini] Response:", JSON.stringify(data).slice(0, 500));
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) {
-      const reason   = data.candidates?.[0]?.finishReason || "UNKNOWN";
-      const promptFB = data.promptFeedback?.blockReason || "";
-      console.warn("[Gemini] No text. reason:", reason, "blockReason:", promptFB);
-      if (reason === "SAFETY" || promptFB)
-        throw new Error("⚠️ Gemini رفض الطلب لأسباب أمنية — بسّط الوصف الوظيفي وأعد المحاولة");
-      if (reason === "MAX_TOKENS")
-        throw new Error("⚠️ الرد طويل جداً — جرّب وصفاً وظيفياً أقصر");
-      // Try to get text from all parts
-      const allText = (data.candidates?.[0]?.content?.parts || [])
-        .map(p => p.text || "").join("");
-      if (allText.trim()) return allText;
-      throw new Error(`Gemini لم يُرجع نصاً (${reason || "no candidates"}) — افتح F12 للتفاصيل`);
-    }
-    return text;
-  }
 
-  async function callClaude(apiKey, messages, systemPrompt) {
-    if (!apiKey) throw new Error("🔑 أدخل Gemini API Key من aistudio.google.com/apikey");
-    return geminiFetch(apiKey, buildGeminiParts(messages, systemPrompt));
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content;
+    if (!text) throw new Error("OpenAI لم يُرجع نصاً");
+    return text;
   }
 
   // ── Parse initial response ─────────────────────────────────

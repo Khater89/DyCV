@@ -991,7 +991,7 @@ async function quickAddSkill() {
 
   btn.disabled=true; btn.textContent="⟳";
   try {
-    const key = localStorage.getItem("gemini_key")||"";
+    const key = localStorage.getItem("openai_key")||"";
     if (!key) { toast("⚠ أدخل Gemini API Key في AI Builder أولاً"); return; }
     const tabs = S.tabs().map(t=>t.id).join(", ");
     const res  = await geminiCall(key,
@@ -1016,7 +1016,7 @@ async function quickAddSkill() {
 
 /* ── Extract from Drive ──────────────────────────────────────── */
 async function extractFromDrive(tabId, btn) {
-  const gemKey = localStorage.getItem("gemini_key")||"";
+  const gemKey = localStorage.getItem("openai_key")||"";
   if (!gemKey) { toast("⚠ أدخل Gemini API Key في AI Builder أولاً"); return; }
 
   const cfg = window.DRIVE_CONFIG||{};
@@ -1074,23 +1074,31 @@ Return JSON only (no markdown):
 
 /* ── Gemini call ─────────────────────────────────────────────── */
 async function geminiCall(key, prompt, retries=1) {
-  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${key}`;
-  const res = await fetch(url, {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({
-      contents:[{role:"user",parts:[{text:prompt}]}],
-      generationConfig:{maxOutputTokens:2000,temperature:0.2}
-    })
+  // Uses OpenAI API (renamed kept as geminiCall for compatibility)
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type":  "application/json",
+      "Authorization": `Bearer ${key}`,
+    },
+    body: JSON.stringify({
+      model:       "gpt-4o",
+      messages:    [{ role: "user", content: prompt }],
+      max_tokens:  2000,
+      temperature: 0.2,
+    }),
   });
   if (!res.ok) {
-    const e=await res.json().catch(()=>({}));
-    if (res.status===503&&retries>0) { await new Promise(r=>setTimeout(r,3000)); return geminiCall(key,prompt,retries-1); }
-    throw new Error(e?.error?.message||`HTTP ${res.status}`);
+    const e = await res.json().catch(() => ({}));
+    if (res.status === 429 && retries > 0) {
+      await new Promise(r => setTimeout(r, 3000));
+      return geminiCall(key, prompt, retries - 1);
+    }
+    throw new Error(e?.error?.message || `HTTP ${res.status}`);
   }
-  const data=await res.json();
-  const text=data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error("Gemini returned no text");
+  const data = await res.json();
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) throw new Error("OpenAI returned no text");
   return text;
 }
 
