@@ -9,7 +9,7 @@
 "use strict";
 
 /* ── Config ──────────────────────────────────────────────────── */
-const N8N_WEBHOOK = "https://khaterover.app.n8n.cloud/webhook-test/chatbot";
+const N8N_WEBHOOK = "https://khaterover.app.n8n.cloud/webhook/chatbot";
 // test URL (n8n test mode):  https://khaterover.app.n8n.cloud/webhook-test/chatbot
 // production URL (n8n prod): https://khaterover.app.n8n.cloud/webhook/chatbot
 
