@@ -33,24 +33,110 @@ let typing     = false;
 function buildContext() {
   const data = getData(); if (!data) return {};
   const tab    = getTab();
-  const p      = data.curated?.[tab] || {};
   const person = data.person || {};
   const jd     = $("jdInput")?.value?.trim() || "";
 
-  return {
-    person:     { name: person.name||"", location: person.location||"", email: person.email||"" },
-    active_tab: tab,
+  // ── Full profile for one tab ────────────────────────────────
+  const profileOf = (p) => ({
     summary:    p.summary || "",
     experience: (p.experience||[]).map(e => ({
-      title:   e.title,
-      company: e.company,
-      dates:   e.dates,
-      bullets: (e.bullets||[]).slice(0,4)
+      title:    e.title    || "",
+      company:  e.company  || "",
+      location: e.location || "",
+      dates:    e.dates    || "",
+      bullets:  e.bullets  || [],
+      keywords: e.keywords || [],
     })),
-    skills:    (p.skills||[]).slice(0,20),
-    certs:     (p.certs||[]).map(c => c.title||c.name),
-    education: (data.education||[]).map(e => `${e.degree||e.title} — ${e.school||e.institution}`),
-    job_description: jd.slice(0,1000),
+    skills: p.skills || [],
+    certs:  (p.certs||[]).map(c => ({
+      title:  c.title || c.name || "",
+      issuer: c.issuer || "",
+      date:   c.date   || "",
+    })),
+    links:       p.links       || [],
+    cert_images: (p.cert_images||[]).map(i => i.title || ""),
+  });
+
+  // ── All tabs ────────────────────────────────────────────────
+  const allTabs = {};
+  (data.tabs || []).forEach(t => {
+    const p = data.curated?.[t.id];
+    if (p) allTabs[t.id] = { label: t.label, subtitle: t.subtitle || "", ...profileOf(p) };
+  });
+
+  // ── Branches (sub-specializations) ──────────────────────────
+  const branches = {};
+  Object.entries(data.curated_branches || {}).forEach(([tabId, brs]) => {
+    branches[tabId] = {};
+    Object.entries(brs).forEach(([brId, br]) => {
+      branches[tabId][brId] = { label: br.label || brId, ...profileOf(br) };
+    });
+  });
+
+  // ── Merged snapshot if active ───────────────────────────────
+  const merged = data.curated?.["__merged__"] ? profileOf(data.curated["__merged__"]) : null;
+
+  // ── Document highlights (raw CV text extracted from PDFs) ───
+  const docHighlights = {};
+  (data.docs || []).forEach(doc => {
+    Object.entries(doc.highlights || {}).forEach(([tabId, hls]) => {
+      if (!docHighlights[tabId]) docHighlights[tabId] = [];
+      hls.forEach(h => { if (h.text) docHighlights[tabId].push(h.text); });
+    });
+  });
+  // Trim to top 15 per tab
+  Object.keys(docHighlights).forEach(k => { docHighlights[k] = docHighlights[k].slice(0, 15); });
+
+  return {
+    // Identity
+    person: {
+      name:      person.name      || "",
+      preferred: person.preferred || "",
+      location:  person.location  || "",
+      email:     person.email     || "",
+      phone:     person.phone     || "",
+    },
+
+    // Current view state
+    active_tab:    tab,
+    active_branch: window.__cvApp?.getBranch?.() || null,
+    is_merged:     tab === "__merged__",
+
+    // Full CV across every tab
+    all_tabs:  allTabs,
+    branches,
+    merged,
+
+    // Global data
+    projects: (data.projects || []).map(p => ({
+      name:    p.name || p.title || "",
+      summary: p.summary || "",
+      bullets: p.bullets || [],
+      url:     p.url || "",
+      tabs:    p.tab_ids || [],
+    })),
+    education: (data.education || []).map(e => ({
+      school: e.school || e.institution || "",
+      degree: e.degree || e.title || "",
+      major:  e.major  || "",
+      year:   e.year   || e.dates || "",
+      note:   e.note   || "",
+    })),
+
+    // Raw source material from CV PDFs
+    document_highlights: docHighlights,
+
+    // Job description if user pasted one
+    job_description: jd.slice(0, 2000),
+
+    // Stats for quick reference
+    stats: {
+      total_tabs:        Object.keys(allTabs).length,
+      total_experience:  Object.values(allTabs).reduce((n,t)=>n+(t.experience?.length||0), 0),
+      total_skills:      [...new Set(Object.values(allTabs).flatMap(t=>t.skills||[]))].length,
+      total_certs:       [...new Set(Object.values(allTabs).flatMap(t=>(t.certs||[]).map(c=>c.title)))].length,
+      total_projects:    (data.projects||[]).length,
+    },
   };
 }
 

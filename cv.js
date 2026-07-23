@@ -1177,10 +1177,13 @@ window.addEventListener("DOMContentLoaded", () => {
   window.__cvApp = {
     getData:       () => S.data,
     getActiveTab:  () => S.tab,
+    getBranch:     () => S.branchId,
+    isMerged:      () => S.merge,
+    getProfile:    () => S.profile(),
     setTab,
     renderAll,
     renderTabs,
-    renderBranches:() => {},
+    renderBranches,
     save:          () => S.save(),
   };
 
